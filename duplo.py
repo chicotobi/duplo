@@ -79,35 +79,48 @@ if 'patches' not in st.session_state:
   st.session_state.patches = []
   st.session_state.pos0 = [[(0,.5),(0,-.5)]]
 
-if st.sidebar.button('Straight'):
-  pos0 = st.session_state.pos0[-1]
-  patch, pos0 = add_straight(pos0)
-  st.session_state.pos0.append(pos0)
-  st.session_state.patches.append(patch)
+with st.container():
+  col1, col2, col3, col4 = st.columns(4)
+  with col1:
+    if st.button('Straight'):
+      pos0 = st.session_state.pos0[-1]
+      patch, pos0 = add_straight(pos0)
+      st.session_state.pos0.append(pos0)
+      st.session_state.patches.append(patch)
+    
+  with col2:
+    if st.button('Left'):
+      pos0 = st.session_state.pos0[-1]
+      patch, pos0 = add_curve_left(pos0)
+      st.session_state.pos0.append(pos0)
+      st.session_state.patches.append(patch)
+      
+  with col3:
+    if st.button('Right'):
+      pos0 = st.session_state.pos0[-1]
+      patch, pos0 = add_curve_right(pos0)
+      st.session_state.pos0.append(pos0)
+      st.session_state.patches.append(patch)
   
-if st.sidebar.button('Left'):
-  pos0 = st.session_state.pos0[-1]
-  patch, pos0 = add_curve_left(pos0)
-  st.session_state.pos0.append(pos0)
-  st.session_state.patches.append(patch)
-  
-if st.sidebar.button('Right'):
-  pos0 = st.session_state.pos0[-1]
-  patch, pos0 = add_curve_right(pos0)
-  st.session_state.pos0.append(pos0)
-  st.session_state.patches.append(patch)
-  
-if st.sidebar.button('Remove'):
-  st.session_state.pos0.pop()
-  st.session_state.patches.pop()
-  
+  with col4:
+    if st.button('Remove'):
+      st.session_state.pos0.pop()
+      st.session_state.patches.pop()
+    
 plt.cla()
 fig, ax = plt.subplots()
 for p in st.session_state.patches:
   p2 = copy(p)
   ax.add_patch(p2)
+
 pos0 = st.session_state.pos0[-1]
-#ax.plot(pos0,'-r')
+p1, p2 = pos0
+x1, y1 = p1
+x2, y2 = p2
+x3 = (x1+x2)/2 + (y1-y2)
+y3 = (y1+y2)/2 - (x1-x2)
+ax.plot([x1,x2,x3,x1],[y1,y2,y3,y1],'-g',linewidth=1)
+
 ax.set_xlim((-20,60))
 ax.set_ylim((-20,20))
 plt.gca().set_aspect('equal')
