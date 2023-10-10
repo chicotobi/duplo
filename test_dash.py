@@ -16,5 +16,7 @@ app.layout = dbc.Container(row,
     className="p-5",
 )
 
+app_for_wsgi = app.server
+
 if __name__ == "__main__":
     app.run_server()
