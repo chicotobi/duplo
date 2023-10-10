@@ -1,7 +1,5 @@
 import dash_bootstrap_components as dbc
-from dash import html, Dash
-import dash
-import matplotlib.pyplot as plt
+from dash import Dash, html
 
 row = dbc.Row(
             [
@@ -12,7 +10,7 @@ row = dbc.Row(
             ]
         )
 
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.layout = dbc.Container(row,
     className="p-5",
