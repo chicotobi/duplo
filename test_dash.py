@@ -6,6 +6,8 @@ from numpy import pi, sin, cos
 import plotly.graph_objects as go
 
 
+
+
 pos0 = [[(9.5,10),(10.5,10)]]
 
 l0 = 4
@@ -108,10 +110,10 @@ def add_straight(cur_pos):
 
 
 
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP]#,
-    #            meta_tags=[
-    #    {"name": "viewport", "content": "width=device-width, initial-scale=1"}
-    #]
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP],
+                meta_tags=[
+        {"name": "viewport", "content": "width=device-width, initial-scale=1"}
+    ]
     )
 
 title = dash.html.H1("Duplo Schienen Designer")
@@ -126,9 +128,6 @@ controls = dbc.Row(
         )
 
 shapes0 = []
-
-
-print("hi")
     
 @dash.callback(
     dash.Output('mygraph', 'figure'),
@@ -136,23 +135,21 @@ print("hi")
 )
 def update(input_value): 
     global shapes0, pos0
-    
-    print("hi")
-    
-#    if input_value > 0:
-    wedge0, new_pos = add_curve_left(pos0[-1])
-    
-    pos0 += [new_pos]
-    
-    new_shape = dict(type="path", path=wedge0, line={"color":"black"})
-    
-    shapes0 += [new_shape]
+        
+    if input_value > 0:
+        wedge0, new_pos = add_curve_left(pos0[-1])
+        
+        pos0 += [new_pos]
+        
+        new_shape = dict(type="path", path=wedge0)
+        
+        shapes0 += [new_shape]
     
     fig0 = go.Figure()
     fig0.update_layout(template="none",
                        xaxis=axis_dict,
                        yaxis=axis_dict,
-                       xaxis_range=[-20,20], yaxis_range=[-20,20],
+                       xaxis_range=[5,20], yaxis_range=[0,20],
                        shapes = shapes0)
     
   #  fig0.layout._config= config
@@ -200,7 +197,7 @@ axis_dict =dict(
                 showline=True
                 )
 
-axis_dict = dict()
+axis_dict =dict()
 
 fig0 = go.Figure()
 fig0.update_layout(template="none",
@@ -213,9 +210,9 @@ fig0.update_layout(template="none",
 
 plot = dash.dcc.Graph(
       id='mygraph',
-      figure = fig0#,
+      figure = fig0,
       #responsive  = True,
-      #style={'width': '90vw', 'height': '90vh'}
+      style={'width': '90vw', 'height': '90vh'}
   )
 
 app.layout = dbc.Container(
