@@ -126,14 +126,15 @@ controls = dbc.Row([
 track_shapes = []
 
 def create_figure(shapes=[]):
-    axis_dict = dict(showgrid=False, showticklabels=False, mirror=True, ticks="",
-                    linewidth=1, linecolor='black', showline=True)
+    axis_dict = dict(showgrid=False, showticklabels=False, visible = False, ticks="")
     fig0 = go.Figure()
     fig0.update_layout(template="none",
                         xaxis=axis_dict,
                         yaxis=axis_dict,
                         xaxis_range=[0,40], yaxis_range=[0,40],
+                        margin = go.layout.Margin(l = 0, r = 0, b = 0, t = 0),
                         shapes = shapes)    
+    fig0.update_yaxes(scaleanchor="x", scaleratio=1)
     return fig0
     
 @dash.callback(
@@ -167,10 +168,10 @@ def update(b1, b2, b3, b4):
 
 fig0 = create_figure()
 
-plot = dash.dcc.Graph(id='mygraph', figure = fig0,
-      style={'width': '90vw', 'height': '90vh'})
+plot = dash.dcc.Graph(id='mygraph', figure = fig0, style={'width': '90vw', 'height': '90vh'})
+plot_with_border = dash.html.Div(plot, style={"border":"2px black solid"})
 
-app.layout = dbc.Container([title, controls, plot])
+app.layout = dbc.Container([title, controls, plot_with_border], fluid=True)
 
 app_for_wsgi = app.server
 
