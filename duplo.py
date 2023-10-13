@@ -171,7 +171,8 @@ fig0 = create_figure()
 plot = dash.dcc.Graph(id='mygraph', figure = fig0, style={'width': '90vw', 'height': '90vh'})
 plot_with_border = dash.html.Div(plot, style={"border":"2px black solid"})
 
-app.layout = dbc.Container([title, controls, plot_with_border], fluid=True)
+app.layout = dbc.Container([title, controls, plot_with_border], fluid=True,
+                           style={"touch-action": "manipulation"})
 
 app_for_wsgi = app.server
 
