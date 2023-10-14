@@ -38,7 +38,7 @@ controls = Row([
                 Col(html.Button(get_label_arrow_right(track_types),id="add_right")),
                 Col(html.Button(cross_remove,id="remove")),
                 Col(html.Button(bomb_reset,id="reset"))                
-            ])
+            ],className="g-0")
 
 def create_figure(shapes=[]):
     axis_dict = dict(showgrid=False, showticklabels=False, visible = False, ticks="")
