@@ -29,89 +29,90 @@ def get_label_next_ending():
   return "\N{black right-pointing double triangle with vertical bar}"
 
 def create_figure(shapes=[]):
-    axis_dict = dict(showgrid=False, showticklabels=False, visible = False, ticks="")
-    fig0 = go.Figure()
-    fig0.update_layout(template="none",
-                        xaxis=axis_dict,
-                        yaxis=axis_dict,
-                        xaxis_range=[-20,20], yaxis_range=[-20,20],
-                        margin = go.layout.Margin(l = 0, r = 0, b = 0, t = 0),
-                        shapes = shapes)
-    fig0.update_yaxes(scaleanchor="x", scaleratio=1)
-    return fig0
+  axis_dict = dict(showgrid=False, showticklabels=False, visible = False, ticks="")
+  fig0 = go.Figure()
+  fig0.update_layout(template="none",
+                      xaxis=axis_dict,
+                      yaxis=axis_dict,
+                      xaxis_range=[-20,20], yaxis_range=[-20,20],
+                      margin = go.layout.Margin(l = 0, r = 0, b = 0, t = 0),
+                      shapes = shapes)
+  fig0.update_yaxes(scaleanchor="x", scaleratio=1)
+  return fig0
 
 @callback(
-    Output('mygraph', 'figure'),
-    Output('add_left', 'children'),
-    Output('add_straight', 'children'),
-    Output('add_right', 'children'),
-    Input('add_left', 'n_clicks'),
-    Input('add_right', 'n_clicks'),
-    Input('add_straight', 'n_clicks'),
-    Input('remove', 'n_clicks'),
-    Input('reset', 'n_clicks'),
-    prevent_initial_call=True
+  Output('mygraph', 'figure'),
+  Output('add_left', 'children'),
+  Output('add_straight', 'children'),
+  Output('add_right', 'children'),
+  Input('add_left', 'n_clicks'),
+  Input('add_right', 'n_clicks'),
+  Input('add_straight', 'n_clicks'),
+  Input('remove', 'n_clicks'),
+  Input('reset', 'n_clicks'),
+  prevent_initial_call=True
 )
 def update(b1, b2, b3, b4, b5):
-    global tracks
+  global tracks
 
+  if len(tracks) > 0:
+    cur_pos = tracks[-1].ending
+  else:
+    cur_pos = pos0
+
+  if ctx.triggered_id == 'remove':
     if len(tracks) > 0:
-        cur_pos = tracks[-1].ending
-    else:
-        cur_pos = pos0
+      tracks.pop()
+  elif ctx.triggered_id == 'reset':
+    tracks = []
+  else:
+    if ctx.triggered_id == 'add_left':
+      new_track = add_curve_left(cur_pos)
+    elif ctx.triggered_id == 'add_right':
+      new_track = add_curve_right(cur_pos)
+    elif ctx.triggered_id == 'add_straight':
+      new_track = add_straight(cur_pos)
+    tracks.append(new_track)
 
-    if ctx.triggered_id == 'remove':
-        if len(tracks) > 0:
-            tracks.pop()
-    elif ctx.triggered_id == 'reset':
-        tracks = []
-    else:
-        if ctx.triggered_id == 'add_left':
-            new_track = add_curve_left(cur_pos)
-        elif ctx.triggered_id == 'add_right':
-            new_track = add_curve_right(cur_pos)
-        elif ctx.triggered_id == 'add_straight':
-            new_track = add_straight(cur_pos)
-        tracks.append(new_track)
+  if len(tracks) > 0:
+    cur_pos = tracks[-1].ending
+  else:
+    cur_pos = pos0
 
-    if len(tracks) > 0:
-        cur_pos = tracks[-1].ending
-    else:
-        cur_pos = pos0
+  front_arrow = get_front_arrow(cur_pos)
 
-    front_arrow = get_front_arrow(cur_pos)
+  track_shapes = [front_arrow] + [i.shape for i in tracks]
 
-    track_shapes = [front_arrow] + [i.shape for i in tracks]
+  fig = create_figure(track_shapes )
+  label_arrow_left     = get_label_arrow_left(tracks)
+  label_arrow_straight = get_label_arrow_straight(tracks)
+  label_arrow_right    = get_label_arrow_right(tracks)
 
-    fig = create_figure(track_shapes )
-    label_arrow_left     = get_label_arrow_left(tracks)
-    label_arrow_straight = get_label_arrow_straight(tracks)
-    label_arrow_right    = get_label_arrow_right(tracks)
-
-    return fig, label_arrow_left, label_arrow_straight, label_arrow_right
+  return fig, label_arrow_left, label_arrow_straight, label_arrow_right
 
 
 app = Dash(external_stylesheets=[themes.BOOTSTRAP],
-                meta_tags=[ {"name": "viewport", "content": "width=device-width, initial-scale=1"} ]
-    )
+           meta_tags=[ {"name": "viewport", "content": "width=device-width, initial-scale=1"} ]
+           )
 
 title = html.H1("Duplo Schienen Designer")
 
 fig0 = create_figure([get_front_arrow(pos0)])
 
 controls = Row([
-                Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
-                Col(html.Button(get_label_arrow_straight(tracks),id="add_straight")),
-                Col(html.Button(get_label_arrow_right(tracks),id="add_right")),
-                Col(html.Button(get_label_remove(),id="remove")),
-                Col(html.Button(get_label_reset(),id="reset"))
-            ],className="g-0")
+  Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
+  Col(html.Button(get_label_arrow_straight(tracks),id="add_straight")),
+  Col(html.Button(get_label_arrow_right(tracks),id="add_right")),
+  Col(html.Button(get_label_remove(),id="remove")),
+  Col(html.Button(get_label_reset(),id="reset"))
+  ],className="g-0")
 
 plot = dcc.Graph(id='mygraph', figure = fig0, style={'width': '90vw', 'height': '90vh'})
 plot_with_border = html.Div(plot, style={"border":"2px black solid"})
 
-app.layout = Container([title, controls, plot_with_border], fluid=True,
-                           style={"touch-action": "manipulation"})
+app.layout = Container([title, controls, plot_with_border],
+                       fluid=True,
+                       style={"touch-action": "manipulation"})
 
 app_for_wsgi = app.server
 
