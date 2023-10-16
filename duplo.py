@@ -60,7 +60,7 @@ def update(b1, b2, b3, b4, b5):
     else:
         cur_pos = pos0
 
-    if ctx.triggered_id == 'remove' and len(tracks):
+    if ctx.triggered_id == 'remove':
         if len(tracks) > 0:
             tracks.pop()
     elif ctx.triggered_id == 'reset':
