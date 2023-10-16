@@ -54,27 +54,27 @@ def cv(curve, cur_pos):
   return center, r_outer, r_inner, theta1, new_pos
 
 def shape_straight(st):
-    path = f"M {st[0][0]},{st[0][1]}"
-    for x,y in st[1:]:
-        path += f" L{x},{y}"
-    path += " Z"
-    return dict(type="path", path=path)
+  path = f"M {st[0][0]},{st[0][1]}"
+  for x,y in st[1:]:
+    path += f" L{x},{y}"
+  path += " Z"
+  return dict(type="path", path=path)
 
 def shape_wedge(center, ri, ro, th0, th1, n=50):
-    t = np.linspace(th0, th1, n)
-    x0 = np.cos(t)
-    y0 = np.sin(t)
-    x1 = center[0] + ri * x0
-    y1 = center[1] + ri * y0
-    x2 = center[0] + ro * x0[::-1]
-    y2 = center[1] + ro * y0[::-1]
-    x = np.concatenate([x1,x2])
-    y = np.concatenate([y1,y2])
-    path = f"M {x[0]},{y[0]}"
-    for xc, yc in zip(x[1:], y[1:]):
-        path += f" L{xc},{yc}"
-    path += " Z"
-    return dict(type="path", path=path)
+  t = np.linspace(th0, th1, n)
+  x0 = np.cos(t)
+  y0 = np.sin(t)
+  x1 = center[0] + ri * x0
+  y1 = center[1] + ri * y0
+  x2 = center[0] + ro * x0[::-1]
+  y2 = center[1] + ro * y0[::-1]
+  x = np.concatenate([x1,x2])
+  y = np.concatenate([y1,y2])
+  path = f"M {x[0]},{y[0]}"
+  for xc, yc in zip(x[1:], y[1:]):
+    path += f" L{xc},{yc}"
+  path += " Z"
+  return dict(type="path", path=path)
 
 def add_curve_left(cur_pos):
   center, r_outer, r_inner, theta1, new_pos = cv(curve_left, cur_pos)
@@ -94,10 +94,10 @@ def add_straight(cur_pos):
   return Track(ttype = "straight", ending = new_pos, shape = shape)
 
 def get_front_arrow(pos0):
-    p1, p2 = pos0
-    x1, y1 = p1
-    x2, y2 = p2
-    x3 = (x1+x2)/2 + (y1-y2)
-    y3 = (y1+y2)/2 - (x1-x2)
-    path = f"M {x1},{y1} L{x2},{y2} L{x3},{y3} L{x1},{y1} Z"
-    return dict(type="path", path=path, line=dict(color="green"))
+  p1, p2 = pos0
+  x1, y1 = p1
+  x2, y2 = p2
+  x3 = (x1+x2)/2 + (y1-y2)
+  y3 = (y1+y2)/2 - (x1-x2)
+  path = f"M {x1},{y1} L{x2},{y2} L{x3},{y3} L{x1},{y1} Z"
+  return dict(type="path", path=path, line=dict(color="green"))

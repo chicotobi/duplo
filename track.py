@@ -2,6 +2,6 @@ from dataclasses import  dataclass
 
 @dataclass
 class Track:
-    ttype: str
-    ending: None
-    shape: None
+  ttype: str
+  ending: None
+  shape: None
