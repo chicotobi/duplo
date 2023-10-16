@@ -8,24 +8,25 @@ import plotly.graph_objects as go
 tracks = []
 
 def get_label_arrow_left(tracks):
-  arrow_left = "\U000021B0"
-  return arrow_left + "x" + str(sum(1 for i in tracks if i.ttype == 'curve'))
+  n_curve = sum(1 for i in tracks if i.ttype == 'curve')
+  return "\N{upwards arrow with tip leftwards} x" + str(n_curve)
 
 def get_label_arrow_right(tracks):
-  arrow_right = "\U000021B1"
-  return arrow_right + "x" + str(sum(1 for i in tracks if i.ttype == 'curve'))
+  n_curve = sum(1 for i in tracks if i.ttype == 'curve')
+  return "\N{upwards arrow with tip rightwards} x" + str(n_curve)
 
 def get_label_arrow_straight(tracks):
-  arrow_straight = "\U00002191"
-  return arrow_straight + "x" + str(sum(1 for i in tracks if i.ttype == 'straight'))
+  n_straight = sum(1 for i in tracks if i.ttype == 'straight')
+  return "\N{upwards arrow} x" + str(n_straight)
 
 def get_label_remove():
-  cross_remove = "\U0000274C"
-  return cross_remove
+  return "\N{cross mark}"
 
 def get_label_reset():
-  bomb_reset = "\U0001F4A3"
-  return bomb_reset
+  return "\N{bomb}"
+
+def get_label_next_ending():
+  return "\N{black right-pointing double triangle with vertical bar}"
 
 def create_figure(shapes=[]):
     axis_dict = dict(showgrid=False, showticklabels=False, visible = False, ticks="")
