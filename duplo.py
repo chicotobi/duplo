@@ -80,7 +80,7 @@ def update(b1, b2, b3, b4, b5):
 
     front_arrow = get_front_arrow(cur_pos)
 
-    track_shapes = [i.shape for i in tracks] + [front_arrow]
+    track_shapes = [front_arrow] + [i.shape for i in tracks]
 
     fig = create_figure(track_shapes )
     label_arrow_left     = get_label_arrow_left(tracks)
@@ -96,7 +96,7 @@ app = Dash(external_stylesheets=[themes.BOOTSTRAP],
 
 title = html.H1("Duplo Schienen Designer")
 
-fig0 = create_figure()
+fig0 = create_figure([get_front_arrow(pos0)])
 
 controls = Row([
                 Col(html.Button(get_label_arrow_left(tracks),id="add_left")),

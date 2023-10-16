@@ -100,4 +100,4 @@ def get_front_arrow(pos0):
     x3 = (x1+x2)/2 + (y1-y2)
     y3 = (y1+y2)/2 - (x1-x2)
     path = f"M {x1},{y1} L{x2},{y2} L{x3},{y3} L{x1},{y1} Z"
-    return dict(type="path", path=path)
+    return dict(type="path", path=path, line=dict(color="green"))
