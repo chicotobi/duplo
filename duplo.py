@@ -90,30 +90,32 @@ def update(b1, b2, b3, b4, b5):
 
   return fig, label_arrow_left, label_arrow_straight, label_arrow_right
 
+def get_app():
+  app = Dash(external_stylesheets=[themes.BOOTSTRAP],
+             meta_tags=[ {"name": "viewport", "content": "width=device-width, initial-scale=1"} ]
+             )
 
-app = Dash(external_stylesheets=[themes.BOOTSTRAP],
-           meta_tags=[ {"name": "viewport", "content": "width=device-width, initial-scale=1"} ]
-           )
+  title = html.H1("Duplo Schienen Designer")
 
-title = html.H1("Duplo Schienen Designer")
+  fig0 = create_figure([get_front_arrow(pos0)])
 
-fig0 = create_figure([get_front_arrow(pos0)])
+  controls = Row([
+    Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
+    Col(html.Button(get_label_arrow_straight(tracks),id="add_straight")),
+    Col(html.Button(get_label_arrow_right(tracks),id="add_right")),
+    Col(html.Button(get_label_remove(),id="remove")),
+    Col(html.Button(get_label_reset(),id="reset"))
+    ],className="g-0")
 
-controls = Row([
-  Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
-  Col(html.Button(get_label_arrow_straight(tracks),id="add_straight")),
-  Col(html.Button(get_label_arrow_right(tracks),id="add_right")),
-  Col(html.Button(get_label_remove(),id="remove")),
-  Col(html.Button(get_label_reset(),id="reset"))
-  ],className="g-0")
+  plot = dcc.Graph(id='mygraph', figure = fig0, style={'width': '90vw', 'height': '90vh'})
+  plot_with_border = html.Div(plot, style={"border":"2px black solid"})
 
-plot = dcc.Graph(id='mygraph', figure = fig0, style={'width': '90vw', 'height': '90vh'})
-plot_with_border = html.Div(plot, style={"border":"2px black solid"})
+  app.layout = Container([title, controls, plot_with_border],
+                         fluid=True,
+                         style={"touch-action": "manipulation"})
+  return app
 
-app.layout = Container([title, controls, plot_with_border],
-                       fluid=True,
-                       style={"touch-action": "manipulation"})
-
+app = get_app()
 app_for_wsgi = app.server
 
 if __name__ == "__main__":
