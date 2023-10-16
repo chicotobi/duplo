@@ -8,7 +8,6 @@ from track import Track
 
 # State variables
 pos0 = [(-0.5,0),(0.5,0)]
-track_shapes = []
 tracks = []
 
 app = Dash(external_stylesheets=[themes.BOOTSTRAP],
@@ -67,30 +66,28 @@ def create_figure(shapes=[]):
     prevent_initial_call=True
 )
 def update(b1, b2, b3, b4, b5): 
-    global track_shapes, pos0, tracks
+    global tracks
     
     if len(tracks) > 0:
         cur_pos = tracks[-1].ending
     else:
         cur_pos = pos0
         
-    if ctx.triggered_id == 'remove':
-        track_shapes.pop()
-        tracks.pop()
+    if ctx.triggered_id == 'remove' and len(tracks):
+        if len(tracks) > 0:
+            tracks.pop()
     elif ctx.triggered_id == 'reset':
-        track_shapes = []
         tracks = []
     else:
         if ctx.triggered_id == 'add_left':
             new_shape, new_pos = add_curve_left(cur_pos)
-            tracks += [Track(ttype = "curve", ending = new_pos)]
+            tracks += [Track(ttype = "curve", ending = new_pos, shape = new_shape)]
         elif ctx.triggered_id == 'add_right':
             new_shape, new_pos = add_curve_right(cur_pos)    
-            tracks += [Track(ttype = "curve", ending = new_pos)]
+            tracks += [Track(ttype = "curve", ending = new_pos, shape = new_shape)]
         elif ctx.triggered_id == 'add_straight':
             new_shape, new_pos = add_straight(cur_pos)  
-            tracks += [Track(ttype = "straight", ending = new_pos)]
-        track_shapes += [new_shape]          
+            tracks += [Track(ttype = "straight", ending = new_pos, shape = new_shape)]
     
     if len(tracks) > 0:
         cur_pos = tracks[-1].ending
@@ -99,6 +96,8 @@ def update(b1, b2, b3, b4, b5):
         
     front_arrow = get_front_arrow(cur_pos)
         
+    track_shapes = [i.shape for i in tracks]
+    
     fig = create_figure(track_shapes + [front_arrow])
     label_arrow_left     = get_label_arrow_left(tracks)
     label_arrow_straight = get_label_arrow_straight(tracks)
