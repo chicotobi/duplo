@@ -4,10 +4,12 @@ from dash import Dash, html, ctx, callback, Input, Output, dcc
 from dash_bootstrap_components import Row, Col, Container, themes
 import plotly.graph_objects as go
 
+from track import Track
+
 # State variables
 pos0 = [[(-0.5,0),(0.5,0)]]
 track_shapes = []
-track_types = []
+tracks = []
 
 app = Dash(external_stylesheets=[themes.BOOTSTRAP],
                 meta_tags=[ {"name": "viewport", "content": "width=device-width, initial-scale=1"} ]
@@ -23,19 +25,19 @@ arrow_right    = "\U000021B1"
 cross_remove   = "\U0000274C"
 bomb_reset     = "\U0001F4A3"
 
-def get_label_arrow_left(track_types):
-  return arrow_left + "x" + str(sum(1 for i in track_types if i == 'curve'))
+def get_label_arrow_left(tracks):
+  return arrow_left + "x" + str(sum(1 for i in tracks if i.ttype == 'curve'))
   
-def get_label_arrow_right(track_types):
-  return arrow_right + "x" + str(sum(1 for i in track_types if i == 'curve'))
+def get_label_arrow_right(tracks):
+  return arrow_right + "x" + str(sum(1 for i in tracks if i.ttype == 'curve'))
   
-def get_label_arrow_straight(track_types):
-  return arrow_straight + "x" + str(sum(1 for i in track_types if i == 'straight'))
+def get_label_arrow_straight(tracks):
+  return arrow_straight + "x" + str(sum(1 for i in tracks if i.ttype == 'straight'))
 
 controls = Row([
-                Col(html.Button(get_label_arrow_left(track_types),id="add_left")),
-                Col(html.Button(get_label_arrow_straight(track_types),id="add_straight")),
-                Col(html.Button(get_label_arrow_right(track_types),id="add_right")),
+                Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
+                Col(html.Button(get_label_arrow_straight(tracks),id="add_straight")),
+                Col(html.Button(get_label_arrow_right(tracks),id="add_right")),
                 Col(html.Button(cross_remove,id="remove")),
                 Col(html.Button(bomb_reset,id="reset"))                
             ],className="g-0")
@@ -65,26 +67,26 @@ def create_figure(shapes=[]):
     prevent_initial_call=True
 )
 def update(b1, b2, b3, b4, b5): 
-    global track_shapes, pos0, track_types
+    global track_shapes, pos0, tracks
     
     if ctx.triggered_id == 'remove':
         track_shapes.pop()
         pos0.pop()
-        track_types.pop()
+        tracks.pop()
     elif ctx.triggered_id == 'reset':
         track_shapes = []
         pos0 = [pos0[0]]
-        track_types = []
+        tracks = []
     else:
         cur_pos = pos0[-1]
         if ctx.triggered_id == 'add_left':
-            track_types += ['curve']
+            tracks += [Track(ttype = "curve")]
             new_shape, new_pos = add_curve_left(cur_pos)        
         elif ctx.triggered_id == 'add_right':
-            track_types += ['curve']
+            tracks += [Track(ttype = "curve")]
             new_shape, new_pos = add_curve_right(cur_pos)     
         elif ctx.triggered_id == 'add_straight':
-            track_types += ["straight"]
+            tracks += [Track(ttype = "straight")]
             new_shape, new_pos = add_straight(cur_pos)  
         pos0 += [new_pos]
         track_shapes += [new_shape]          
@@ -92,9 +94,9 @@ def update(b1, b2, b3, b4, b5):
     front_arrow = get_front_arrow(pos0[-1])
         
     fig = create_figure(track_shapes + [front_arrow])
-    label_arrow_left     = get_label_arrow_left(track_types)
-    label_arrow_straight = get_label_arrow_straight(track_types)
-    label_arrow_right    = get_label_arrow_right(track_types)
+    label_arrow_left     = get_label_arrow_left(tracks)
+    label_arrow_straight = get_label_arrow_straight(tracks)
+    label_arrow_right    = get_label_arrow_right(tracks)
     
     return fig, label_arrow_left, label_arrow_straight, label_arrow_right
 
