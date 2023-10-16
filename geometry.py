@@ -77,19 +77,19 @@ def shape_wedge(center, ri, ro, th0, th1, n=50):
 def add_curve_left(cur_pos):
   center, r_outer, r_inner, theta1, new_pos = cv(curve_left, cur_pos)
   shape = shape_wedge(center, r_inner, r_outer, theta1, theta1 + np.pi/6)
-  return shape, new_pos
+  return Track(ttype = "curve", ending = new_pos, shape = shape)
 
 def add_curve_right(cur_pos):
   center, r_outer, r_inner, theta1, new_pos = cv(curve_right, cur_pos)  
   shape = shape_wedge(center ,r_inner, r_outer, theta1 - np.pi/6, theta1)
-  return shape, new_pos
+  return Track(ttype = "curve", ending = new_pos, shape = shape)
 
 def add_straight(cur_pos):  
   trafo = affine_trafo(straight[0],straight[1],cur_pos[0],cur_pos[1])  
   st0 = [trafo(p).tolist()[0] for p in straight]  
   shape = shape_straight(st0)
   new_pos = (st0[3],st0[2])
-  return shape, new_pos
+  return Track(ttype = "straight", ending = new_pos, shape = shape)
 
 def get_front_arrow(pos0):
     p1, p2 = pos0

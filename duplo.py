@@ -4,8 +4,6 @@ from dash import Dash, html, ctx, callback, Input, Output, dcc
 from dash_bootstrap_components import Row, Col, Container, themes
 import plotly.graph_objects as go
 
-from track import Track
-
 # State variables
 pos0 = [(-0.5,0),(0.5,0)]
 tracks = []
@@ -80,14 +78,12 @@ def update(b1, b2, b3, b4, b5):
         tracks = []
     else:
         if ctx.triggered_id == 'add_left':
-            new_shape, new_pos = add_curve_left(cur_pos)
-            tracks += [Track(ttype = "curve", ending = new_pos, shape = new_shape)]
+            new_track = add_curve_left(cur_pos)
         elif ctx.triggered_id == 'add_right':
-            new_shape, new_pos = add_curve_right(cur_pos)    
-            tracks += [Track(ttype = "curve", ending = new_pos, shape = new_shape)]
+            new_track = add_curve_right(cur_pos)    
         elif ctx.triggered_id == 'add_straight':
-            new_shape, new_pos = add_straight(cur_pos)  
-            tracks += [Track(ttype = "straight", ending = new_pos, shape = new_shape)]
+            new_track = add_straight(cur_pos)  
+        tracks.append(new_track)
     
     if len(tracks) > 0:
         cur_pos = tracks[-1].ending
