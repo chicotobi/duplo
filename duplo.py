@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from track import Track
 
 # State variables
-pos0 = [[(-0.5,0),(0.5,0)]]
+pos0 = [(-0.5,0),(0.5,0)]
 track_shapes = []
 tracks = []
 
@@ -69,29 +69,35 @@ def create_figure(shapes=[]):
 def update(b1, b2, b3, b4, b5): 
     global track_shapes, pos0, tracks
     
+    if len(tracks) > 0:
+        cur_pos = tracks[-1].ending
+    else:
+        cur_pos = pos0
+        
     if ctx.triggered_id == 'remove':
         track_shapes.pop()
-        pos0.pop()
         tracks.pop()
     elif ctx.triggered_id == 'reset':
         track_shapes = []
-        pos0 = [pos0[0]]
         tracks = []
     else:
-        cur_pos = pos0[-1]
         if ctx.triggered_id == 'add_left':
-            tracks += [Track(ttype = "curve")]
-            new_shape, new_pos = add_curve_left(cur_pos)        
+            new_shape, new_pos = add_curve_left(cur_pos)
+            tracks += [Track(ttype = "curve", ending = new_pos)]
         elif ctx.triggered_id == 'add_right':
-            tracks += [Track(ttype = "curve")]
-            new_shape, new_pos = add_curve_right(cur_pos)     
+            new_shape, new_pos = add_curve_right(cur_pos)    
+            tracks += [Track(ttype = "curve", ending = new_pos)]
         elif ctx.triggered_id == 'add_straight':
-            tracks += [Track(ttype = "straight")]
             new_shape, new_pos = add_straight(cur_pos)  
-        pos0 += [new_pos]
+            tracks += [Track(ttype = "straight", ending = new_pos)]
         track_shapes += [new_shape]          
     
-    front_arrow = get_front_arrow(pos0[-1])
+    if len(tracks) > 0:
+        cur_pos = tracks[-1].ending
+    else:
+        cur_pos = pos0
+        
+    front_arrow = get_front_arrow(cur_pos)
         
     fig = create_figure(track_shapes + [front_arrow])
     label_arrow_left     = get_label_arrow_left(tracks)
