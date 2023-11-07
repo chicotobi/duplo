@@ -1,19 +1,20 @@
 from track import Track
 import numpy as np
 
-pos0 = [(-0.5,0),(0.5,0)]
-
+w0 = 1
 l0 = 4
-straight = [(0,0),(1,0),(1,l0),(0,l0)]
+
+pos0 = [(-w0/2,0),(w0/2,0)]
+straight = [(0,0),(w0,0),(w0,l0),(0,l0)]
 
 ang = 30/180*np.pi
 angs = np.sin(ang)
 angc = np.cos(ang)
 
 c0 = l0 * 7 / 2 / 3 ** .5
-curve_left  = [(c0-.5,0),(c0+.5,0),((c0+.5)*angc,(c0+.5)*angs),((c0-.5)*angc,(c0-.5)*angs),(0,0)]
+curve_left  = [(c0-w0/2,0),(c0+w0/2,0),((c0+w0/2)*angc,(c0+w0/2)*angs),((c0-w0/2)*angc,(c0-w0/2)*angs),(0,0)]
 x = [(-x,y) for (x,y) in curve_left]
-curve_right = [x[1],x[0],x[3],x[2],x[4]]
+curve_right = [x[1],x[0],x[3],x[2],(0,0)]
 
 def affine_trafo(p1,p2,p1n,p2n):
   p1 = np.array(p1)
