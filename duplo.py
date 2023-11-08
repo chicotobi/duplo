@@ -1,4 +1,4 @@
-from geometry import add_curve_left, add_curve_right, add_straight, get_front_arrow, pos0
+from geometry import add_curve_left, add_curve_right, add_straight, get_front_arrow, ending0
 from dash import Dash, html, ctx, callback, Input, Output, dcc
 
 from dash_bootstrap_components import Row, Col, Container, themes
@@ -58,7 +58,7 @@ def update(b1, b2, b3, b4, b5):
   if len(tracks) > 0:
     cur_pos = tracks[-1].ending
   else:
-    cur_pos = pos0
+    cur_pos = ending0
 
   if ctx.triggered_id == 'remove':
     if len(tracks) > 0:
@@ -77,7 +77,7 @@ def update(b1, b2, b3, b4, b5):
   if len(tracks) > 0:
     cur_pos = tracks[-1].ending
   else:
-    cur_pos = pos0
+    cur_pos = ending0
 
   front_arrow = get_front_arrow(cur_pos)
 

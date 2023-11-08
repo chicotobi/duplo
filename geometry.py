@@ -4,7 +4,7 @@ import numpy as np
 w0 = 1
 l0 = 4
 
-pos0 = [(-w0/2,0),(w0/2,0)]
+ending0 = [(-w0/2,0),(w0/2,0)]
 straight = [(0,0),(w0,0),(w0,l0),(0,l0)]
 
 ang = 30/180*np.pi
@@ -94,8 +94,8 @@ def add_straight(cur_pos):
   new_pos = (st0[3],st0[2])
   return Track(ttype = "straight", ending = new_pos, shape = shape)
 
-def get_front_arrow(pos0):
-  p1, p2 = pos0
+def get_front_arrow(pos):
+  p1, p2 = pos
   x1, y1 = p1
   x2, y2 = p2
   x3 = (x1+x2)/2 + (y1-y2)
