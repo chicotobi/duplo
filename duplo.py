@@ -97,7 +97,7 @@ def get_app():
 
   title = html.H1("Duplo Schienen Designer")
 
-  fig0 = create_figure([get_front_arrow(pos0)])
+  fig0 = create_figure([get_front_arrow(ending0)])
 
   controls = Row([
     Col(html.Button(get_label_arrow_left(tracks),id="add_left")),
