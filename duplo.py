@@ -53,10 +53,13 @@ def create_figure(shapes=[]):
   prevent_initial_call=True
 )
 def update(b1, b2, b3, b4, b5):
-  global tracks
+  global tracks ending_idx
+
+  # Collect endings
+  endings = [a for tr in tracks for (a,b) in zip(tr.ending,tr.ending_taken) if not b ]
 
   if len(tracks) > 0:
-    cur_pos = tracks[-1].ending
+    cur_pos = endings[-1]
   else:
     cur_pos = ending0
 
@@ -74,8 +77,14 @@ def update(b1, b2, b3, b4, b5):
       new_track = add_straight(cur_pos)
     tracks.append(new_track)
 
-  if len(tracks) > 0:
-    cur_pos = tracks[-1].ending
+  if len(tracks) == 1:
+    tracks[0].ending_taken[0] = False
+
+  # Collect endings
+  endings = [a for tr in tracks for (a,b) in zip(tr.ending,tr.ending_taken) if not b ]
+
+  if len(endings) > 0:
+    cur_pos = endings[-1]
   else:
     cur_pos = ending0
 

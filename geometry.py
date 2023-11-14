@@ -51,8 +51,10 @@ def cv(curve, cur_pos):
   r_inner = np.linalg.norm(np.array(cu0[0])-np.array(cu0[4]))
   theta1 = angle_against_horizontal(np.array(cu0[0])-np.array(cu0[4]))
   center = cu0[4]
-  new_pos = (cu0[3],cu0[2])
-  return center, r_outer, r_inner, theta1, new_pos
+  ending0 = (cu0[1],cu0[0])
+  ending1 = (cu0[3],cu0[2])
+  endings = [ending0, ending1]
+  return center, r_outer, r_inner, theta1, endings
 
 def shape_straight(st):
   path = f"M {st[0][0]},{st[0][1]}"
@@ -78,21 +80,23 @@ def shape_wedge(center, ri, ro, th0, th1, n=50):
   return dict(type="path", path=path)
 
 def add_curve_left(cur_pos):
-  center, r_outer, r_inner, theta1, new_pos = cv(curve_left, cur_pos)
+  center, r_outer, r_inner, theta1, endings = cv(curve_left, cur_pos)
   shape = shape_wedge(center, r_inner, r_outer, theta1, theta1 + np.pi/6)
-  return Track(ttype = "curve", ending = new_pos, ending_taken = True, shape = shape)
+  return Track(ttype = "curve", ending = endings, ending_taken = [True, False], shape = shape)
 
 def add_curve_right(cur_pos):
-  center, r_outer, r_inner, theta1, new_pos = cv(curve_right, cur_pos)
+  center, r_outer, r_inner, theta1, endings = cv(curve_right, cur_pos)
   shape = shape_wedge(center ,r_inner, r_outer, theta1 - np.pi/6, theta1)
-  return Track(ttype = "curve", ending = new_pos, ending_taken = True, shape = shape)
+  return Track(ttype = "curve", ending = endings, ending_taken = [True, False], shape = shape)
 
 def add_straight(cur_pos):
   trafo = affine_trafo(straight[0],straight[1],cur_pos[0],cur_pos[1])
   st0 = [trafo(p).tolist()[0] for p in straight]
   shape = shape_straight(st0)
-  new_pos = (st0[3],st0[2])
-  return Track(ttype = "straight", ending = new_pos, ending_taken = True, shape = shape)
+  ending0 = (st0[1],st0[0])
+  ending1 = (st0[3],st0[2])
+  endings = [ending0, ending1]
+  return Track(ttype = "straight", ending = endings, ending_taken = [True, False], shape = shape)
 
 def get_front_arrow(pos):
   p1, p2 = pos
