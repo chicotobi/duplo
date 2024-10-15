@@ -1,0 +1,52 @@
+<html>
+  <head>
+    <title>Duplo designer</title>
+    <style>
+      canvas {
+          border: 1px solid black;
+      }
+  </style>
+  </head>
+  <body>
+    <form action="/" method="post">
+          <input type ="submit" name="left"     value = "Left">
+          <input type ="submit" name="straight" value = "Straight">
+          <input type ="submit" name="right"    value = "Right">
+          <input type ="submit" name="delete"   value = "Delete">
+ </form>
+ {% for v in tracks %}
+ {{ v }}
+ {% endfor %}
+
+<br>
+ <canvas id="drawingCanvas" width="500" height="500"></canvas>
+        <script>
+            function drawCircle(circle) {
+                const canvas = document.getElementById('drawingCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                ctx.beginPath();
+                ctx.arc(circle.centerX, circle.centerY, circle.radius, 0, 2 * Math.PI);
+                ctx.fillStyle = circle.color;
+                ctx.fill();
+                ctx.lineWidth = circle.border_width;
+                ctx.strokeStyle = circle.border_color;
+                ctx.stroke();
+            }
+
+            // Circle properties passed from Flask via Jinja
+            const circledd = {
+                centerX: {{ circle.centerX }},
+                centerY: {{ circle.centerY }},
+                radius: {{ circle.radius }},
+                color: '{{ circle.color }}',
+                border_color: '{{ circle.border_color }}',
+                border_width: {{ circle.border_width }}
+            };
+
+            // Draw the Circle
+            drawCircle(circledd);
+        </script>
+
+  </body>
+</html>
