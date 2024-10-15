@@ -1,8 +1,8 @@
 from track import Track
 import numpy as np
 
-w0 = 1
-l0 = 4
+w0 = 1 * 20
+l0 = 4 * 20
 
 ending0 = [(-w0/2,0),(w0/2,0)]
 straight = [(0,0),(w0,0),(w0,l0),(0,l0)]
@@ -12,6 +12,7 @@ angs = np.sin(ang)
 angc = np.cos(ang)
 
 c0 = l0 * 7 / 2 / 3 ** .5
+
 curve_left  = [(c0-w0/2,0),(c0+w0/2,0),((c0+w0/2)*angc,(c0+w0/2)*angs),((c0-w0/2)*angc,(c0-w0/2)*angs),(0,0)]
 x = [(-x,y) for (x,y) in curve_left]
 curve_right = [x[1],x[0],x[3],x[2],(0,0)]
@@ -57,11 +58,11 @@ def cv(curve, cur_pos):
   return center, r_outer, r_inner, theta1, endings
 
 def shape_straight(st):
-  path = f"M {st[0][0]},{st[0][1]}"
+  path = []
+  path.append({'x':st[0][0], 'y':st[0][1]})
   for x,y in st[1:]:
-    path += f" L{x},{y}"
-  path += " Z"
-  return dict(type="path", path=path)
+    path.append({'x':x, 'y':y})
+  return path
 
 def shape_wedge(center, ri, ro, th0, th1, n=50):
   t = np.linspace(th0, th1, n)
@@ -73,30 +74,27 @@ def shape_wedge(center, ri, ro, th0, th1, n=50):
   y2 = center[1] + ro * y0[::-1]
   x = np.concatenate([x1,x2])
   y = np.concatenate([y1,y2])
-  path = f"M {x[0]},{y[0]}"
+  path = []
+  path.append({'x':x[0], 'y':y[0]})
   for xc, yc in zip(x[1:], y[1:]):
-    path += f" L{xc},{yc}"
-  path += " Z"
-  return dict(type="path", path=path)
+    path.append({'x':xc, 'y':yc})
+  return path
 
 def add_curve_left(cur_pos):
   center, r_outer, r_inner, theta1, endings = cv(curve_left, cur_pos)
-  shape = shape_wedge(center, r_inner, r_outer, theta1, theta1 + np.pi/6)
-  return Track(ttype = "curve", ending = endings, ending_taken = [True, False], shape = shape)
+  return shape_wedge(center, r_inner, r_outer, theta1, theta1 + np.pi/6), endings
 
 def add_curve_right(cur_pos):
   center, r_outer, r_inner, theta1, endings = cv(curve_right, cur_pos)
-  shape = shape_wedge(center ,r_inner, r_outer, theta1 - np.pi/6, theta1)
-  return Track(ttype = "curve", ending = endings, ending_taken = [True, False], shape = shape)
+  return shape_wedge(center ,r_inner, r_outer, theta1 - np.pi/6, theta1), endings
 
 def add_straight(cur_pos):
   trafo = affine_trafo(straight[0],straight[1],cur_pos[0],cur_pos[1])
   st0 = [trafo(p).tolist()[0] for p in straight]
-  shape = shape_straight(st0)
   ending0 = (st0[1],st0[0])
   ending1 = (st0[3],st0[2])
   endings = [ending0, ending1]
-  return Track(ttype = "straight", ending = endings, ending_taken = [True, False], shape = shape)
+  return shape_straight(st0), endings
 
 def get_front_arrow(pos):
   p1, p2 = pos
@@ -104,5 +102,7 @@ def get_front_arrow(pos):
   x2, y2 = p2
   x3 = (x1+x2)/2 + (y1-y2)
   y3 = (y1+y2)/2 - (x1-x2)
-  path = f"M {x1},{y1} L{x2},{y2} L{x3},{y3} L{x1},{y1} Z"
-  return dict(type="path", path=path, line=dict(color="green"))
+  return [{'x': x1, 'y': y1},
+          {'x': x2, 'y': y2},
+          {'x': x3, 'y': y3},
+          {'x': x1, 'y': y1}]

@@ -5,48 +5,43 @@
       canvas {
           border: 1px solid black;
       }
-  </style>
+      .test{
+          height:50px;
+          width:100px;
+      }
+    </style>
   </head>
   <body>
     <form action="/" method="post">
-          <input type ="submit" name="left"     value = "Left">
-          <input type ="submit" name="straight" value = "Straight">
-          <input type ="submit" name="right"    value = "Right">
-          <input type ="submit" name="delete"   value = "Delete">
- </form>
- {% for v in tracks %}
- {{ v }}
- {% endfor %}
+      <input class="test" type ="submit" name="load"     value = "Load &#128194;">
+      <input class="test" type ="submit" name="save"     value = "Save &#128190;">
+      <input class="test" type ="submit" name="left"     value = "Left &ShortLeftArrow;">
+      <input class="test" type ="submit" name="straight" value = "Straight &ShortUpArrow;">
+      <input class="test" type ="submit" name="right"    value = "Right &ShortRightArrow;">
+      <input class="test" type ="submit" name="delete"   value = "Delete &#10060;">
+    </form>
+    {% for v in tracks %}
+    {{ v }}
+    {% endfor %}
 
-<br>
- <canvas id="drawingCanvas" width="500" height="500"></canvas>
-        <script>
-            function drawCircle(circle) {
-                const canvas = document.getElementById('drawingCanvas');
-                const ctx = canvas.getContext('2d');
-                
-                ctx.beginPath();
-                ctx.arc(circle.centerX, circle.centerY, circle.radius, 0, 2 * Math.PI);
-                ctx.fillStyle = circle.color;
-                ctx.fill();
-                ctx.lineWidth = circle.border_width;
-                ctx.strokeStyle = circle.border_color;
-                ctx.stroke();
-            }
+    <br>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <script>
+        function drawCircle() {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
 
-            // Circle properties passed from Flask via Jinja
-            const circledd = {
-                centerX: {{ circle.centerX }},
-                centerY: {{ circle.centerY }},
-                radius: {{ circle.radius }},
-                color: '{{ circle.color }}',
-                border_color: '{{ circle.border_color }}',
-                border_width: {{ circle.border_width }}
-            };
+            ctx.beginPath();                
+            
+            {% for pt in path %}
+            ctx.lineTo({{ pt.x }}, {{ pt.y }});
+            {% endfor %}
 
-            // Draw the Circle
-            drawCircle(circledd);
-        </script>
+            ctx.stroke();
+        }
 
+        // Draw the Circle
+        drawCircle();
+    </script>
   </body>
 </html>

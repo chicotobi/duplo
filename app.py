@@ -3,9 +3,18 @@ from flask_sqlalchemy import SQLAlchemy
 
 from sqlalchemy.sql import text
 
+from geometry import add_curve_left, add_curve_right, add_straight, w0
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///duplo.db'
 db = SQLAlchemy(app)
+
+ts = []
+path = []
+x0 = 250
+y0 = 250
+
+cur_pos = [(x0 - w0 / 2, y0), (x0 + w0 / 2, 0)]
 
 class tracks(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,43 +22,59 @@ class tracks(db.Model):
     def __repr__(self):
         return f'{self.id}>'
     
-def add_track(tracktype0):
-    new_track = tracks(tracktype = tracktype0)
-    db.session.add(new_track)
-    db.session.commit()
-
-def remove_last_track():
-    last_track = tracks.query.order_by(tracks.id.desc()).first()
-    if last_track:
-        db.session.delete(last_track)
-        db.session.commit()
-
 def sql(cmd):
     return db.session.execute(text(cmd))
 
+def save(ts):
+    sql("delete from tracks")
+    for t in ts:
+        new_track = tracks(tracktype = t)
+        db.session.add(new_track)
+    db.session.commit()
+
+def load():
+    ts = list(sql("select tracktype from tracks"))
+    print(ts)
+
+    # Now build path
+    path = []
+    cur_pos = [(-0.5,0),(0.5,0)]
+    for val in ts:
+        if val == 'left':
+            pts, endings = add_curve_left(cur_pos)
+        elif val == 'straight':
+            pts, endings = add_straight(cur_pos)
+        elif val == 'right':
+            pts, endings = add_curve_right(cur_pos)
+        path += pts
+        cur_pos = endings[-1]
+
+    return ts, path, cur_pos
+
 @app.route('/', methods=['GET', 'POST'])
-def hello_world():
-    cmd = "select tracktype from tracks"
-    tracks = sql(cmd)
+def index():
+    global ts, path, cur_pos
+    print('ts',ts)
+    print('path',path)
+    print('cur_pos',cur_pos)
     if request.method == 'POST':
         val = list(request.form.keys())[0]
-        print(val)
         if val in ['left','straight','right']:
-            add_track(val)
+            ts.append(val)
+            if val == 'left':
+                pts, endings = add_curve_left(cur_pos)
+            elif val == 'straight':
+                pts, endings = add_straight(cur_pos)
+            elif val == 'right':
+                pts, endings = add_curve_right(cur_pos)
+            path += pts
+            cur_pos = endings[-1]
         elif val == 'delete':
-            remove_last_track()
-        cmd = "select tracktype from tracks"
-        tracks = sql(cmd)
+            if len(ts) > 0:
+                 ts = ts[:-1]
+        elif val == 'save':
+            save(ts)
+        elif val == 'load':
+            ts, path, cur_pos = load()
 
-    tracks = list(tracks)
-
-    circle_properties = {
-        'centerX': 250,
-        'centerY': 250,
-        'radius': 10 * len(tracks),
-        'color': 'blue',
-        'border_color': 'black',
-        'border_width': 2
-    }
-
-    return render_template('index.html', tracks = tracks, circle = circle_properties)
+    return render_template('index.html', path = path, tracks = ts)
