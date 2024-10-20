@@ -33,20 +33,23 @@ def save(ts):
     db.session.commit()
 
 def load():
-    ts = list(sql("select tracktype from tracks"))
+    ts = [i[0] for i in sql("select tracktype from tracks")]
     print(ts)
 
     # Now build path
     pathes = []
     cur_pos = [[(x0 + w0 / 2, y0), (x0 - w0 / 2, y0)]]
     for val in ts:
+        print(val)
         if val == 'left':
-            pts, endings = add_curve_left(cur_pos)
+            pts, endings = add_curve_left(cur_pos[-1])
         elif val == 'straight':
-            pts, endings = add_straight(cur_pos)
+            pts, endings = add_straight(cur_pos[-1])
         elif val == 'right':
-            pts, endings = add_curve_right(cur_pos)
-        path += [pts]
+            pts, endings = add_curve_right(cur_pos[-1])
+        else:
+            print('bug')
+        pathes += [pts]
         cur_pos += [endings[-1]]
 
     return ts, pathes, cur_pos
