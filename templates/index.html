@@ -27,21 +27,23 @@
     <br>
     <canvas id="drawingCanvas" width="500" height="500"></canvas>
     <script>
-        function drawCircle() {
+        function drawElement(el) {
             const canvas = document.getElementById('drawingCanvas');
             const ctx = canvas.getContext('2d');
 
-            ctx.beginPath();                
-            
-            {% for pt in path %}
-            ctx.lineTo({{ pt.x }}, {{ pt.y }});
-            {% endfor %}
+            ctx.beginPath();
+            for (let i = 0; i < el.length; i++) {
+              ctx.lineTo(el[i].x, el[i].y);
+            }
+            ctx.closePath();             
 
             ctx.stroke();
         }
 
-        // Draw the Circle
-        drawCircle();
+        // Draw the Circle       
+        {% for el in path %}
+        drawElement({{el | tojson}});
+        {% endfor %}
     </script>
   </body>
 </html>

@@ -1,8 +1,8 @@
 from track import Track
 import numpy as np
 
-w0 = 1 * 20
-l0 = 4 * 20
+w0 = 1 * 10
+l0 = 4 * 10
 
 ending0 = [(-w0/2,0),(w0/2,0)]
 straight = [(0,0),(w0,0),(w0,l0),(0,l0)]
@@ -80,11 +80,11 @@ def shape_wedge(center, ri, ro, th0, th1, n=50):
     path.append({'x':xc, 'y':yc})
   return path
 
-def add_curve_left(cur_pos):
+def add_curve_right(cur_pos):
   center, r_outer, r_inner, theta1, endings = cv(curve_left, cur_pos)
   return shape_wedge(center, r_inner, r_outer, theta1, theta1 + np.pi/6), endings
 
-def add_curve_right(cur_pos):
+def add_curve_left(cur_pos):
   center, r_outer, r_inner, theta1, endings = cv(curve_right, cur_pos)
   return shape_wedge(center ,r_inner, r_outer, theta1 - np.pi/6, theta1), endings
 
