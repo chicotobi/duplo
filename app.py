@@ -5,8 +5,22 @@ from sqlalchemy.sql import text
 
 from geometry import add_curve_left, add_curve_right, add_straight, w0, get_front_arrow
 
+import os
+
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///duplo.db'
+if os.environ['USERNAME'] in ['hofmant3','chicotobi']:
+    # Local database in repo for test
+    print('Detected local env')
+    con_str = 'sqlite:///duplo.db'
+else:
+    # Python anywhere MySQL database
+    print('Detected pythonanywhere env')
+    user = 'chicotobi'
+    password = 'qwertzui1'
+    host = 'chicotobi.mysql.pythonanywhere-services.com'
+    dbname = 'duplo'
+    con_str = 'mysql+mysqldb://' + user + ':' + password + '@' + host + '/' + dbname
+app.config['SQLALCHEMY_DATABASE_URI'] = con_str
 db = SQLAlchemy(app)
 
 ts = []
