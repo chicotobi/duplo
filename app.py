@@ -8,7 +8,7 @@ from geometry import add_curve_left, add_curve_right, add_straight, w0, get_fron
 import os
 
 app = Flask(__name__)
-if os.environ['USERNAME'] in ['hofmant3','chicotobi']:
+if 'USERNAME' in os.environ.keys() and os.environ['USERNAME'] in ['hofmant3','chicotobi']:
     # Local database in repo for test
     print('Detected local env')
     con_str = 'sqlite:///duplo.db'
