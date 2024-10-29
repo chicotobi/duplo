@@ -28,7 +28,7 @@ else:
     password = 'qwertzui1'
     host = 'chicotobi.mysql.pythonanywhere-services.com'
     dbname = 'chicotobi$duplo'
-    con_str = 'mysql+mysqldb://' + user + ':' + password + '@' + host + '/' + dbname
+    con_str = 'mysql+pymysql://' + user + ':' + password + '@' + host + '/' + dbname
 app.config['SQLALCHEMY_DATABASE_URI'] = con_str
 db = SQLAlchemy(app)
 
