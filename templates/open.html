@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Open track
+{% endblock %}
+
+{% block main %}
+<form action="/open" method="post">
+    <div class="mb-3">
+        <select class="form-select" name="track_id" placeholder="Title">
+            {% for track in tracks %}
+                <option value="{{ track.id }}">{{ track.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+{% endblock %}

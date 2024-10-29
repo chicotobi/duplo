@@ -1,4 +1,3 @@
-from track import Track
 import numpy as np
 
 w0 = 1 * 10

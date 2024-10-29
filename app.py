@@ -1,83 +1,101 @@
-from flask import Flask, render_template, request
-from flask_sqlalchemy import SQLAlchemy
+from flask import request, render_template, session, redirect, url_for
 
-from sqlalchemy.sql import text
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from geometry import add_curve_left, add_curve_right, add_straight, w0, get_front_arrow
+from helpers import login_required, app, error, DEBUG
+from sql_users import users_create, users_read, users_read_hash, users_read_all
+from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
+from sql_layouts import layouts_update, layouts_parse, layouts_read_all
 
-import os
-
-app = Flask(__name__)
-if 'USERNAME' in os.environ.keys() and os.environ['USERNAME'] in ['hofmant3','chicotobi']:
-    # Local database in repo for test
-    print('Detected local env')
-    con_str = 'sqlite:///duplo.db'
-else:
-    # Python anywhere MySQL database
-    print('Detected pythonanywhere env')
-    user = 'chicotobi'
-    password = 'qwertzui1'
-    host = 'chicotobi.mysql.pythonanywhere-services.com'
-    dbname = 'chicotobi$duplo'
-    con_str = 'mysql+mysqldb://' + user + ':' + password + '@' + host + '/' + dbname
-app.config['SQLALCHEMY_DATABASE_URI'] = con_str
-db = SQLAlchemy(app)
-
-ts = []
-pathes = []
-x0 = 250
-y0 = 250
-
-cur_pos = [[(x0 + w0 / 2, y0), (x0 - w0 / 2, y0)]]
-
-class tracks(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    tracktype = db.Column(db.String(1))
-    def __repr__(self):
-        return f'{self.id}>'
-    
-def sql(cmd):
-    return db.session.execute(text(cmd))
-
-def save(ts):
-    sql("delete from tracks")
-    for t in ts:
-        new_track = tracks(tracktype = t)
-        db.session.add(new_track)
-    db.session.commit()
-
-def load():
-    ts = [i[0] for i in sql("select tracktype from tracks")]
-    print(ts)
-
-    # Now build path
-    pathes = []
-    cur_pos = [[(x0 + w0 / 2, y0), (x0 - w0 / 2, y0)]]
-    for val in ts:
-        print(val)
-        if val == 'left':
-            pts, endings = add_curve_left(cur_pos[-1])
-        elif val == 'straight':
-            pts, endings = add_straight(cur_pos[-1])
-        elif val == 'right':
-            pts, endings = add_curve_right(cur_pos[-1])
-        else:
-            print('bug')
-        pathes += [pts]
-        cur_pos += [endings[-1]]
-
-    return ts, pathes, cur_pos
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
+@login_required
 def index():
-    global ts, pathes, cur_pos
-    print('ts',ts)
-    print('path',pathes)
-    print('cur_pos',cur_pos[-1])
+    user_id = session["user_id"]
+    tracks = tracks_read(user_id = user_id)
+    if DEBUG:
+        users_debug = users_read_all()
+        tracks_debug = tracks_read_all()
+        layouts_debug = layouts_read_all()
+    else:
+        users_debug = tracks_debug = layout_debug = []
+    return render_template('index.html', tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, layouts_debug = layouts_debug)
+
+@app.route("/create", methods=["GET", "POST"])
+@login_required
+def create():    
+    if request.method == "GET":
+        return render_template("create.html")
+    
+    # Input check
+    if not request.form.get("title"):
+        return error("Title missing")
+
+    # Title already taken?
+    user_id = session["user_id"]
+    title = request.form.get("title")
+    tracks = tracks_read_title(user_id = user_id, title = title)
+    if len(tracks) > 0:
+        return error("Title already taken")
+
+    # Save to database
+    tracks_create(user_id, title)
+
+    # Remember which track_id is edited
+    track_ids = tracks_read_title(user_id, title)
+    session['track_id'] = track_ids[0]["id"]
+    session['track_title'] = title
+
+    return redirect("/edit")
+
+
+@app.route("/open", methods=["GET", "POST"])
+@login_required
+def open():    
+    if request.method == "GET":
+        # Get available tracks for this user
+        tracks = tracks_read(user_id = session['user_id'])
+        return render_template("open.html", tracks = tracks)
+    
+    # Input check
+    if not request.form.get("track_id"):
+        return error("Track not selected")
+    track_id = request.form.get("track_id")
+    
+    session['track_id'] = track_id
+    titles = tracks_read_id(track_id)
+    session['track_title'] = titles[0]["title"]
+
+    return redirect("/edit")
+
+
+@app.route('/edit', methods=['GET', 'POST'])
+@login_required
+def edit():
+    track_id = session['track_id']
+    track_title = session['track_title']
+
+    if request.method == 'GET':
+        # Initialize from database
+        tracktypes, pathes, cur_pos = layouts_parse(track_id)
+        session['tracktypes'] = tracktypes
+        session['pathes'] = pathes
+        session['cur_pos'] = cur_pos
+    
+    # Set scope variables from session variables
+    tracktypes = session['tracktypes']
+    pathes = session['pathes']
+    cur_pos = session['cur_pos']
+
+    if DEBUG:
+        print('tracktypes',tracktypes)
+    
+    # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
         if val in ['left','straight','right']:
-            ts.append(val)
+            tracktypes.append(val)
             if val == 'left':
                 pts, endings = add_curve_left(cur_pos[-1])
             elif val == 'straight':
@@ -87,15 +105,93 @@ def index():
             pathes += [pts]
             cur_pos += [endings[-1]]
         elif val == 'delete':
-            if len(ts) > 0:
-                 ts = ts[:-1]
+            if len(tracktypes) > 0:
+                 tracktypes = tracktypes[:-1]
                  pathes.pop()
                  cur_pos.pop()
         elif val == 'save':
-            save(ts)
-        elif val == 'load':
-            ts, pathes, cur_pos = load()
+            layouts_update(track_id = track_id, tracktypes = tracktypes)
+            return redirect("/")
 
-    path = pathes + [get_front_arrow(cur_pos[-1])]
+    # Set session variables from scope variables
+    session['tracktypes'] = tracktypes
+    session['pathes'] = pathes
+    session['cur_pos'] = cur_pos
 
-    return render_template('index.html', path = path , tracks = ts)
+    return render_template('edit.html', title = track_title, path = pathes + [get_front_arrow(cur_pos[-1])] , tracks = tracktypes)
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    # Forget any user_id
+    session.clear()
+
+    if request.method == "GET":
+        return render_template("register.html")
+
+    # Input check
+    if not request.form.get("name"):
+        return error("Name missing")
+    elif not request.form.get("password"):
+        return error("Password missing")
+    elif not request.form.get("confirmation"):
+        return error("Repeat password missing")
+    if request.form.get("password") != request.form.get("confirmation"):
+        return error("Password and repeat password don't match")
+
+    # Name already taken?
+    name = request.form.get("name")
+    ids = users_read(name)
+    if len(ids) > 0:
+        return error("Name already taken")
+
+    # Save to database
+    hash = generate_password_hash(request.form.get("password"))
+    users_create(name, hash)
+
+    # Remember which user has logged in
+    ids = users_read(name)
+    session["user_id"] = ids[0]["id"]
+
+    return redirect("/")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Log user in"""
+
+    # Forget any user_id
+    session.clear()
+
+    if request.method == "GET":
+        return render_template("login.html")
+
+    # Input check
+    if not request.form.get("name"):
+        return error("Name missing")
+    elif not request.form.get("password"):
+        return error("Password missing")
+
+    # Find hash has logged in
+    name = request.form.get("name")
+    hash = users_read_hash(name)
+    if len(hash) == 0:
+        return error("Name not registered")
+    hash = hash[0]["hash"]
+
+    # Check password
+    password = request.form.get("password")
+    if not check_password_hash(hash, password):
+        return error("Invalid password")
+
+    # Remember which user has logged in
+    ids = users_read(name)
+    session["user_id"] = ids[0]["id"]
+
+    return redirect("/")
+
+    
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")

@@ -1,49 +1,56 @@
-<html>
-  <head>
-    <title>Duplo designer</title>
-    <style>
-      canvas {
-          border: 1px solid black;
-      }
-      .test{
-          height:50px;
-          width:100px;
-      }
-    </style>
-  </head>
-  <body>
-    <form action="/" method="post">
-      <input class="test" type ="submit" name="load"     value = "Load &#128194;">
-      <input class="test" type ="submit" name="save"     value = "Save &#128190;">
-      <input class="test" type ="submit" name="left"     value = "Left &ShortLeftArrow;">
-      <input class="test" type ="submit" name="straight" value = "Straight &ShortUpArrow;">
-      <input class="test" type ="submit" name="right"    value = "Right &ShortRightArrow;">
-      <input class="test" type ="submit" name="delete"   value = "Delete &#10060;">
-    </form>
-    {% for v in tracks %}
-    {{ v }}
-    {% endfor %}
+{% extends "layout.html" %}
 
-    <br>
-    <canvas id="drawingCanvas" width="500" height="500"></canvas>
-    <script>
-        function drawElement(el) {
-            const canvas = document.getElementById('drawingCanvas');
-            const ctx = canvas.getContext('2d');
+{% block title %}
+    Home
+{% endblock %}
 
-            ctx.beginPath();
-            for (let i = 0; i < el.length; i++) {
-              ctx.lineTo(el[i].x, el[i].y);
-            }
-            ctx.closePath();             
+{% block main %}
 
-            ctx.stroke();
-        }
+<table>
+    <tr>
+        <th>id</th>
+        <th>name</th>
+        <th>hash</th>
+    </tr>
+{% for row in users_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['name'] }}</td>
+  <td>{{ row['hash'] }}</td>
+</tr>
+{% endfor %}
+</table>
 
-        // Draw the Circle       
-        {% for el in path %}
-        drawElement({{el | tojson}});
-        {% endfor %}
-    </script>
-  </body>
-</html>
+<table>
+    <tr>
+        <th>id</th>
+        <th>user_id</th>
+        <th>title</th>
+    </tr>
+{% for row in tracks_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['user_id'] }}</td>
+  <td>{{ row['title'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>track_id</th>
+        <th>idx</th>
+        <th>tracktype</th>
+    </tr>
+{% for row in layouts_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['track_id'] }}</td>
+  <td>{{ row['idx'] }}</td>
+  <td>{{ row['tracktype'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

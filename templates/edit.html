@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Edit {{title}}
+{% endblock %}
+
+{% block main %}
+    <form action="/edit" method="post">
+      <input class="test" type ="submit" name="load"     value = "Load &#128194;">
+      <input class="test" type ="submit" name="save"     value = "Save &#128190;">
+      <input class="test" type ="submit" name="left"     value = "Left &ShortLeftArrow;">
+      <input class="test" type ="submit" name="straight" value = "Straight &ShortUpArrow;">
+      <input class="test" type ="submit" name="right"    value = "Right &ShortRightArrow;">
+      <input class="test" type ="submit" name="delete"   value = "Delete &#10060;">
+    </form>
+
+    {% for v in tracks %}
+    {{ v }}
+    {% endfor %}
+
+    <br>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <script>
+        function drawElement(el) {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+
+            ctx.beginPath();
+            for (let i = 0; i < el.length; i++) {
+              ctx.lineTo(el[i].x, el[i].y);
+            }
+            ctx.closePath();             
+
+            ctx.stroke();
+        }
+
+        // Draw the Circle       
+        {% for el in path %}
+        drawElement({{el | tojson}});
+        {% endfor %}
+    </script>
+{% endblock %}
