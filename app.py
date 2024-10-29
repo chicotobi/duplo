@@ -1,6 +1,5 @@
 from flask import request, render_template, session, redirect, url_for
 
-
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from geometry import add_curve_left, add_curve_right, add_straight, w0, get_front_arrow
