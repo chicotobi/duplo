@@ -6,6 +6,9 @@
 
 {% block main %}
 
+<img src="static/main.png" alt="main" />
+
+{% if DEBUG %}
 <table>
     <tr>
         <th>id</th>
@@ -52,5 +55,6 @@
 </tr>
 {% endfor %}
 </table>
+{% endif %}
 
 {% endblock %}
