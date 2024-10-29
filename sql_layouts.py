@@ -13,7 +13,7 @@ def layouts_update(track_id, tracktypes):
 
 
 def layouts_read(track_id):
-    cmd = f"select idx, tracktype from layouts where track_id = '{track_id}'"
+    cmd = f"select tracktype from layouts where track_id = '{track_id}' order by idx"
     return sql(cmd)
 
     
@@ -24,30 +24,25 @@ def layouts_read_all():
 
 def layouts_parse(track_id):
     layout = layouts_read(track_id = track_id)
-    print(layout)
+    tracktypes = [i['tracktype'] for i in layout]
+    
+    return tracktypes
 
-    layout = {v['idx']:v['tracktype'] for v in layout}
-    print(layout)
-
-    # Now build path
-    n = len(layout)
-    ts = []
+def layouts_build(tracktypes):
     pathes = []
     x0 = 250
     y0 = 250
     cur_pos = [[(x0 + w0 / 2, y0), (x0 - w0 / 2, y0)]]
-    for i in range(n):
-        val = layout[i]
-        ts.append(val)
-        if val == 'left':
+    for tracktype in tracktypes:
+        if tracktype == 'left':
             pts, endings = add_curve_left(cur_pos[-1])
-        elif val == 'straight':
+        elif tracktype == 'straight':
             pts, endings = add_straight(cur_pos[-1])
-        elif val == 'right':
+        elif tracktype == 'right':
             pts, endings = add_curve_right(cur_pos[-1])
         else:
-            print('bug')
+            raise
         pathes += [pts]
         cur_pos += [endings[-1]]
-    print(ts)
-    return ts, pathes, cur_pos
+
+    return pathes, cur_pos

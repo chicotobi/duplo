@@ -2,7 +2,7 @@ import os
 from functools import wraps
 
 from flask import Flask, render_template, session, redirect
-from flask_session import Session
+#from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import text
 
@@ -10,8 +10,8 @@ app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 
 # Session stuff for global variables
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
+#app.config['SESSION_TYPE'] = 'filesystem'
+#Session(app)
 
 DEBUG = True
 

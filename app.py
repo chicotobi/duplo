@@ -7,7 +7,7 @@ from geometry import add_curve_left, add_curve_right, add_straight, w0, get_fron
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import layouts_update, layouts_parse, layouts_read_all
+from sql_layouts import layouts_update, layouts_parse, layouts_read_all, layouts_build
 
 @app.route("/", methods=["GET", "POST"])
 @login_required
@@ -78,15 +78,11 @@ def edit():
 
     if request.method == 'GET':
         # Initialize from database
-        tracktypes, pathes, cur_pos = layouts_parse(track_id)
+        tracktypes = layouts_parse(track_id)
         session['tracktypes'] = tracktypes
-        session['pathes'] = pathes
-        session['cur_pos'] = cur_pos
     
     # Set scope variables from session variables
     tracktypes = session['tracktypes']
-    pathes = session['pathes']
-    cur_pos = session['cur_pos']
 
     if DEBUG:
         print('tracktypes',tracktypes)
@@ -96,27 +92,16 @@ def edit():
         val = list(request.form.keys())[0]
         if val in ['left','straight','right']:
             tracktypes.append(val)
-            if val == 'left':
-                pts, endings = add_curve_left(cur_pos[-1])
-            elif val == 'straight':
-                pts, endings = add_straight(cur_pos[-1])
-            elif val == 'right':
-                pts, endings = add_curve_right(cur_pos[-1])
-            pathes += [pts]
-            cur_pos += [endings[-1]]
         elif val == 'delete':
             if len(tracktypes) > 0:
-                 tracktypes = tracktypes[:-1]
-                 pathes.pop()
-                 cur_pos.pop()
+                tracktypes.pop()
         elif val == 'save':
             layouts_update(track_id = track_id, tracktypes = tracktypes)
             return redirect("/")
 
     # Set session variables from scope variables
     session['tracktypes'] = tracktypes
-    session['pathes'] = pathes
-    session['cur_pos'] = cur_pos
+    pathes, cur_pos = layouts_build(tracktypes)
 
     return render_template('edit.html', title = track_title, path = pathes + [get_front_arrow(cur_pos[-1])] , tracks = tracktypes)
 
