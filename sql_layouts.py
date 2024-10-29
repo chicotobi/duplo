@@ -2,6 +2,7 @@ from helpers import sql
 from geometry import w0, add_curve_left, add_curve_right, add_straight
 
 # create table layouts (id integer primary key autoincrement, track_id integer not null, idx integer not null, tracktype varchar(10) not null);
+# create table layouts (id int NOT NULL AUTO_INCREMENT, track_id int not null, idx int not null, tracktype varchar(10) not null, primary key (id));
 
 def layouts_update(track_id, tracktypes):
     cmd = f"delete from layouts where track_id = '{track_id}'"

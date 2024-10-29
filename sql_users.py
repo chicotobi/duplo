@@ -1,6 +1,7 @@
 from helpers import sql
 
 # create table users (id integer primary key autoincrement, name text not null, hash text not null);
+# create table users (id int NOT NULL AUTO_INCREMENT, name text not null, hash text not null, primary key (id));
 
 def users_create(name, hash):
     cmd = f"insert into users (name, hash) values ('{name}','{hash}')"

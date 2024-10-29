@@ -1,6 +1,7 @@
 from helpers import sql
 
 # create table tracks (id integer primary key autoincrement, user_id integer not null, title text not null);
+# create table tracks (id int NOT NULL AUTO_INCREMENT, user_id int not null, title text not null, primary key (id));
 
 def tracks_create(user_id, title):
     cmd = f"insert into tracks (user_id, title) values ('{user_id}','{title}')"
