@@ -19,7 +19,7 @@ def index():
         tracks_debug = tracks_read_all()
         layouts_debug = layouts_read_all()
     else:
-        users_debug = tracks_debug = layout_debug = []
+        users_debug = tracks_debug = layouts_debug = []
     return render_template('index.html', tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, layouts_debug = layouts_debug)
 
 @app.route("/create", methods=["GET", "POST"])
