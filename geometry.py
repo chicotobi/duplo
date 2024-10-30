@@ -1,5 +1,9 @@
 import numpy as np
 
+# https://www.duplo-schienen.de/lego-duplo-schienen-geometrische-regeln.html
+# length of seven straight = length of rrllllrr (eight curves)
+
+
 w0 = 1 * 10
 l0 = 4 * 10
 
@@ -10,6 +14,8 @@ ang = 30/180*np.pi
 angs = np.sin(ang)
 angc = np.cos(ang)
 
+# length of seven straight = length of rrllllrr (eight curves)
+# This gives the mean curve radius?
 c0 = l0 * 7 / 2 / 3 ** .5
 
 curve_left  = [(c0-w0/2,0),(c0+w0/2,0),((c0+w0/2)*angc,(c0+w0/2)*angs),((c0-w0/2)*angc,(c0-w0/2)*angs),(0,0)]
@@ -57,11 +63,7 @@ def cv(curve, cur_pos):
   return center, r_outer, r_inner, theta1, endings
 
 def shape_straight(st):
-  path = []
-  path.append({'x':st[0][0], 'y':st[0][1]})
-  for x,y in st[1:]:
-    path.append({'x':x, 'y':y})
-  return path
+  return [{'x':x, 'y':y} for x,y in st]
 
 def shape_wedge(center, ri, ro, th0, th1, n=50):
   t = np.linspace(th0, th1, n)
@@ -73,11 +75,7 @@ def shape_wedge(center, ri, ro, th0, th1, n=50):
   y2 = center[1] + ro * y0[::-1]
   x = np.concatenate([x1,x2])
   y = np.concatenate([y1,y2])
-  path = []
-  path.append({'x':x[0], 'y':y[0]})
-  for xc, yc in zip(x[1:], y[1:]):
-    path.append({'x':xc, 'y':yc})
-  return path
+  return [{'x':xc, 'y':yc} for xc, yc in zip(x,y)]
 
 def add_curve_right(cur_pos):
   center, r_outer, r_inner, theta1, endings = cv(curve_left, cur_pos)
