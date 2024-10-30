@@ -32,7 +32,7 @@ def layouts_build(tracktypes):
     pathes = []
     x0 = 250
     y0 = 250
-    cur_pos = [[(x0 + w0 / 2, y0), (x0 - w0 / 2, y0)]]
+    cur_pos = [[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]
     for tracktype in tracktypes:
         if tracktype == 'left':
             pts, endings = add_curve_left(cur_pos[-1])

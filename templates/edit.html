@@ -26,7 +26,8 @@
             
             ctx.beginPath();
             for (let i = 0; i < el.length; i++) {
-              ctx.lineTo(el[i].x, el[i].y);
+              // HTML canvas is inverted
+              ctx.lineTo(el[i].x, 500 - el[i].y);
             }
             ctx.closePath();             
 
