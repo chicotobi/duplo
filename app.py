@@ -113,6 +113,24 @@ def edit():
             pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
             n = len(endings[-1])
             cursor_idx = (cursor_idx + 1) % n
+        elif val == 'rotate':
+            if len(pieces) > 0:
+                # Rotate is very complicated in this setup
+                pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
+                n = len(endings[-1])
+
+                # Remove the last piece and remember stuff
+                last_piece = pieces.pop()
+                last_ending_idx = ending_idxs.pop()
+                last_ending_idx_new_piece = ending_idxs_new_piece.pop()
+                
+                # now increase the cursor index 
+                last_ending_idx_new_piece = (last_ending_idx_new_piece + 1) % n
+
+                # Now add the piece
+                pieces.append(last_piece)
+                ending_idxs.append(last_ending_idx)
+                ending_idxs_new_piece.append(last_ending_idx_new_piece)
         elif val == 'save':
             layouts_update(track_id = track_id, pieces = pieces)
             return redirect("/")
