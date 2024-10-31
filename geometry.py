@@ -127,15 +127,6 @@ def add_piece(type, cur_pos, ending_idx):
   
   # Now transform the endings
   trafo_endings = [[trafo(p) for p in e] for e in endings[type]]
-
-  # Remove the taken ending
-  #trafo_endings.pop(ending_idx)
-
-  # Currently, just return the first available ending
-  #new_ending = trafo_endings[0]
-
-  # Arrow has to point the "other way", so switch the two points around
-  #new_ending = new_ending[::-1]
   
   return to_path(trafo_points), trafo_endings
 

@@ -80,10 +80,12 @@ def edit():
         pieces = layouts_parse(track_id)
         session['pieces'] = pieces
         session['cursor_idx'] = 0
+        session['ending_idxs'] = []
     
     # Set scope variables from session variables
     pieces = session['pieces']
     cursor_idx = session['cursor_idx']
+    ending_idxs = session['ending_idxs']
 
     if DEBUG:
         print('pieces',pieces)
@@ -93,18 +95,29 @@ def edit():
         val = list(request.form.keys())[0]
         if val in ['left','straight','right','switch']:
             pieces.append(val)
+            ending_idxs.append(cursor_idx)
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
+                ending_idxs.pop()
+                cursor_idx = 0
+        elif val == 'next_ending':
+            pathes, endings = layouts_build(pieces, ending_idxs)
+            n = len(endings[-1])
+            cursor_idx = (cursor_idx + 1) % n
         elif val == 'save':
             layouts_update(track_id = track_id, pieces = pieces)
             return redirect("/")
 
     # Set session variables from scope variables
     session['pieces'] = pieces
+    session['ending_idxs'] = ending_idxs
     session['cursor_idx'] = cursor_idx
     
-    pathes, endings = layouts_build(pieces)
+    print("cursor_idx", cursor_idx)
+    print("ending_idxs", ending_idxs)
+    
+    pathes, endings = layouts_build(pieces, ending_idxs)
     cursor = endings[-1][cursor_idx]
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]

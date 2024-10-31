@@ -28,13 +28,13 @@ def layouts_parse(track_id):
     
     return pieces
 
-def layouts_build(pieces):
+def layouts_build(pieces, ending_idxs):
     pathes = []
     x0 = 250
     y0 = 250
     all_endings = [[[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]]
-    for piece in pieces:
-        cursor_position = all_endings[-1][0]
+    for piece, cursor_idx in zip(pieces, ending_idxs):
+        cursor_position = all_endings[-1][cursor_idx]
         if piece == 'right':
             type = 'curve'
             ending_idx = 1
