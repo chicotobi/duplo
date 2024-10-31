@@ -7,12 +7,14 @@
 {% block main %}
     <form action="/edit" method="post">
       <div class="button-container">
-        <input class="edit_buttons_top" type ="submit" name="left"     value = "Left &ShortLeftArrow;">
+        <input class="edit_buttons_top" type ="submit" name="left"     value = "Left curve &ShortLeftArrow;">
         <input class="edit_buttons_top" type ="submit" name="straight" value = "Straight &ShortUpArrow;">
-        <input class="edit_buttons_top" type ="submit" name="right"    value = "Right &ShortRightArrow;">
-        <input class="edit_buttons_top" type ="submit" name="switch"    value = "switch">
+        <input class="edit_buttons_top" type ="submit" name="right"    value = "Right curve &ShortRightArrow;">
+        <input class="edit_buttons_top" type ="submit" name="switch"   value = "Switch">
       </div>
       <div class="button-container">
+        <input class="edit_buttons_bottom" type ="submit" name="rotate"      value = "Rotate piece &circlearrowright;">
+        <input class="edit_buttons_bottom" type ="submit" name="next_ending" value = "Next ending &#x23E9;">
         <input class="edit_buttons_bottom" type ="submit" name="save"     value = "Save &#128190;">
         <input class="edit_buttons_bottom" type ="submit" name="delete"   value = "Delete &#10060;">
       </div>
