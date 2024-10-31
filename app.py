@@ -77,32 +77,32 @@ def edit():
 
     if request.method == 'GET':
         # Initialize from database
-        tracktypes = layouts_parse(track_id)
-        session['tracktypes'] = tracktypes
+        pieces = layouts_parse(track_id)
+        session['pieces'] = pieces
     
     # Set scope variables from session variables
-    tracktypes = session['tracktypes']
+    pieces = session['pieces']
 
     if DEBUG:
-        print('tracktypes',tracktypes)
+        print('pieces',pieces)
     
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
         if val in ['left','straight','right','switch']:
-            tracktypes.append(val)
+            pieces.append(val)
         elif val == 'delete':
-            if len(tracktypes) > 0:
-                tracktypes.pop()
+            if len(pieces) > 0:
+                pieces.pop()
         elif val == 'save':
-            layouts_update(track_id = track_id, tracktypes = tracktypes)
+            layouts_update(track_id = track_id, pieces = pieces)
             return redirect("/")
 
     # Set session variables from scope variables
-    session['tracktypes'] = tracktypes
-    pathes, cur_pos = layouts_build(tracktypes)
+    session['pieces'] = pieces
+    pathes, cur_pos = layouts_build(pieces)
 
-    return render_template('edit.html', title = track_title, path = pathes + [get_front_arrow(cur_pos[-1])] , tracks = tracktypes)
+    return render_template('edit.html', title = track_title, path = pathes + [get_front_arrow(cur_pos[-1])] )
 
 
 @app.route("/register", methods=["GET", "POST"])
