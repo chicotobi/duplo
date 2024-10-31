@@ -81,11 +81,13 @@ def edit():
         session['pieces'] = pieces
         session['cursor_idx'] = 0
         session['ending_idxs'] = []
+        session['ending_idxs_new_piece'] = []
     
     # Set scope variables from session variables
     pieces = session['pieces']
     cursor_idx = session['cursor_idx']
     ending_idxs = session['ending_idxs']
+    ending_idxs_new_piece = session['ending_idxs_new_piece']
 
     if DEBUG:
         print('pieces',pieces)
@@ -96,13 +98,19 @@ def edit():
         if val in ['left','straight','right','switch']:
             pieces.append(val)
             ending_idxs.append(cursor_idx)
+            if val == 'right':
+                ending_idxs_new_piece.append(1)
+            else:
+                ending_idxs_new_piece.append(0)
+            cursor_idx = 0
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
                 ending_idxs.pop()
+                ending_idxs_new_piece.pop()
                 cursor_idx = 0
         elif val == 'next_ending':
-            pathes, endings = layouts_build(pieces, ending_idxs)
+            pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
             n = len(endings[-1])
             cursor_idx = (cursor_idx + 1) % n
         elif val == 'save':
@@ -111,13 +119,15 @@ def edit():
 
     # Set session variables from scope variables
     session['pieces'] = pieces
-    session['ending_idxs'] = ending_idxs
     session['cursor_idx'] = cursor_idx
+    session['ending_idxs'] = ending_idxs
+    session['ending_idxs_new_piece'] = ending_idxs_new_piece
     
     print("cursor_idx", cursor_idx)
     print("ending_idxs", ending_idxs)
+    print("ending_idxs_new_piece", ending_idxs_new_piece)
     
-    pathes, endings = layouts_build(pieces, ending_idxs)
+    pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
     cursor = endings[-1][cursor_idx]
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
