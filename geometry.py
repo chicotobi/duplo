@@ -137,10 +137,8 @@ def add_piece(type, cur_pos, ending_idx):
   
   return to_path(trafo_points), [new_ending]
 
-def get_front_arrow(pos):
-  p1, p2 = pos
-  x1, y1 = p1
-  x2, y2 = p2
+def get_path_cursor(cursor):
+  (x1, y1), (x2, y2) = cursor
   x3 = (x1+x2)/2 + (y1-y2)
   y3 = (y1+y2)/2 - (x1-x2)
   return [{'x': x1, 'y': y1},

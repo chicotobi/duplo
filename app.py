@@ -2,7 +2,7 @@ from flask import request, render_template, session, redirect, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from geometry import get_front_arrow
+from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
@@ -101,8 +101,11 @@ def edit():
     # Set session variables from scope variables
     session['pieces'] = pieces
     pathes, cur_pos = layouts_build(pieces)
+    cursor = cur_pos[-1]
+    path_cursor = get_path_cursor(cursor)
+    path = pathes + [path_cursor]
 
-    return render_template('edit.html', title = track_title, path = pathes + [get_front_arrow(cur_pos[-1])] )
+    return render_template('edit.html', title = track_title, path = path)
 
 
 @app.route("/register", methods=["GET", "POST"])
