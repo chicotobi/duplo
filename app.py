@@ -79,9 +79,11 @@ def edit():
         # Initialize from database
         pieces = layouts_parse(track_id)
         session['pieces'] = pieces
+        session['cursor_idx'] = 0
     
     # Set scope variables from session variables
     pieces = session['pieces']
+    cursor_idx = session['cursor_idx']
 
     if DEBUG:
         print('pieces',pieces)
@@ -100,8 +102,10 @@ def edit():
 
     # Set session variables from scope variables
     session['pieces'] = pieces
+    session['cursor_idx'] = cursor_idx
+    
     pathes, endings = layouts_build(pieces)
-    cursor = endings[-1][0]
+    cursor = endings[-1][cursor_idx]
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
 
