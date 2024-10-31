@@ -1,5 +1,5 @@
 from helpers import sql
-from geometry import w0, add_curve, add_straight, add_switch
+from geometry import w0, add_piece
 
 # create table layouts (id integer primary key autoincrement, track_id integer not null, idx integer not null, tracktype varchar(10) not null);
 # create table layouts (id int NOT NULL AUTO_INCREMENT, track_id int not null, idx int not null, tracktype varchar(10) not null, primary key (id));
@@ -35,13 +35,13 @@ def layouts_build(tracktypes):
     cur_pos = [[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]
     for tracktype in tracktypes:
         if tracktype == 'left':
-            pts, endings = add_curve(cur_pos[-1], 0)
+            pts, endings = add_piece('curve',cur_pos[-1], 0)
         elif tracktype == 'straight':
-            pts, endings = add_straight(cur_pos[-1], 0)
+            pts, endings = add_piece('straight',cur_pos[-1], 0)
         elif tracktype == 'right':
-            pts, endings = add_curve(cur_pos[-1], 1)
+            pts, endings = add_piece('curve',cur_pos[-1], 1)
         elif tracktype == 'switch':
-            pts, endings = add_switch(cur_pos[-1], 0)
+            pts, endings = add_piece('switch',cur_pos[-1], 0)
         else:
             raise
         pathes += [pts]
