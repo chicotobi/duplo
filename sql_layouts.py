@@ -32,19 +32,20 @@ def layouts_build(pieces):
     pathes = []
     x0 = 250
     y0 = 250
-    cur_pos = [[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]
+    all_endings = [[[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]]
     for piece in pieces:
-        if piece == 'left':
-            pts, endings = add_piece('curve',cur_pos[-1], 0)
-        elif piece == 'straight':
-            pts, endings = add_piece('straight',cur_pos[-1], 0)
-        elif piece == 'right':
-            pts, endings = add_piece('curve',cur_pos[-1], 1)
-        elif piece == 'switch':
-            pts, endings = add_piece('switch',cur_pos[-1], 0)
+        cursor_position = all_endings[-1][0]
+        if piece == 'right':
+            type = 'curve'
+            ending_idx = 1
+        elif piece == 'left':
+            type = 'curve'
+            ending_idx = 0        
         else:
-            raise
+            type = piece
+            ending_idx = 0
+        pts, endings = add_piece(type, cursor_position, ending_idx)
         pathes += [pts]
-        cur_pos += [endings[-1]]
+        all_endings += [endings]
 
-    return pathes, cur_pos
+    return pathes, all_endings

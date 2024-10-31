@@ -100,8 +100,8 @@ def edit():
 
     # Set session variables from scope variables
     session['pieces'] = pieces
-    pathes, cur_pos = layouts_build(pieces)
-    cursor = cur_pos[-1]
+    pathes, endings = layouts_build(pieces)
+    cursor = endings[-1][0]
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
 
