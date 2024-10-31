@@ -21,7 +21,8 @@ straight_endings = [
                     [(w0,l0),(0,l0)]
                   ]
 
-# Curve
+# Left curve
+# Endings are bottom (0) and top left (1)
 def curve():
   n = 5
   t = [i / (n-1) * pi / 6 for i in range(n)]
@@ -31,27 +32,51 @@ def curve():
   ro = c0 + w0/2
   x = [ri * i for i in x0] + [ro * i for i in x0[::-1]]
   y = [ri * i for i in y0] + [ro * i for i in y0[::-1]]
-  curve_points = list(zip(x,y))
+  points = list(zip(x,y))
 
   cos0 = cos(0)
   sin0 = sin(0)
   cos1 = cos(pi/6)
   sin1 = sin(pi/6)
 
-  curve_endings = [
+  endings = [
       [(ri * cos0, ri * sin0), (ro * cos0, ro * sin0)],
       [(ro * cos1, ro * sin1), (ri * cos1, ri * sin1)]
   ]
-  return curve_points, curve_endings
+  return points, endings
 curve_points, curve_endings = curve()
 
-# Helper functions
-def affine_trafo(p1,p2,p1n,p2n):
-  x1, y1 = p1
-  x2, y2 = p2
+# Switch with input at the bottom and two output at top left and top right
+# Endings are bottom (0) and top left (1) and top right (2)
+def switch():
+  n = 10
+  m = round(n * 0.6)
+  t = [i / (n-1) * pi / 6 for i in range(n)]
+  x0 = [cos(i) for i in t]
+  y0 = [sin(i) for i in t]
+  ri = c0 - w0/2
+  ro = c0 + w0/2
+  x = [ri * i for i in x0] + [ro * i for i in x0[:m:-1]] + [2*c0 - ro * i for i in x0[m:]] + [2*c0 - ri * i for i in x0[::-1]]
+  y = [ri * i for i in y0] + [ro * i for i in y0[:m:-1]] + [       ro * i for i in y0[m:]] + [       ri * i for i in y0[::-1]]
+  points = list(zip(x,y))
 
-  x1p, y1p = p1n
-  x2p, y2p = p2n
+  cos0 = cos(0)
+  sin0 = sin(0)
+  cos1 = cos(pi/6)
+  sin1 = sin(pi/6)
+
+  endings = [
+      [(ri * cos0, ri * sin0), (ro * cos0, ro * sin0)],
+      [(ro * cos1, ro * sin1), (ri * cos1, ri * sin1)],
+      [(2*c0 - ri * cos1, ri * sin1), (2*c0 - ro * cos1, ro * sin1)],
+  ]
+  return points, endings
+switch_points, switch_endings = switch()
+
+# Helper functions
+def affine_trafo(original, transform):
+  (x1, y1), (x2, y2) = original
+  (x1p, y1p), (x2p, y2p) = transform
 
   x3 = x1 + y1 - y2
   y3 = y1 + x2 - x1
@@ -84,37 +109,44 @@ def affine_trafo(p1,p2,p1n,p2n):
 def to_path(xy):
   return [{'x':x, 'y':y} for x,y in xy]
 
-def add_curve_right(cur_pos, ending_idx = 1):
-  pt0 = curve_endings[ending_idx][0]
-  pt1 = curve_endings[ending_idx][1]
-  trafo = affine_trafo(pt0, pt1, cur_pos[0],cur_pos[1])
+def add_curve(cur_pos, ending_idx):
+  original = curve_endings[ending_idx]
+  trafo = affine_trafo(original, cur_pos)
   
-  print(curve_endings[1])
   pts = [trafo(p) for p in curve_points]
-  endings = [[trafo(p) for p in curve_endings[0]][::-1]]
+  new_ending = curve_endings[1-ending_idx]  
+  new_ending = [trafo(p) for p in new_ending]
+
+  # Arrow has to point the "other way", so switch the two points around
+  new_ending = new_ending[::-1]
   
-  return to_path(pts), endings
+  return to_path(pts), [new_ending]
 
-def add_curve_left(cur_pos, ending_idx = 0):
-  pt0 = curve_endings[ending_idx][0]
-  pt1 = curve_endings[ending_idx][1]
-  trafo = affine_trafo(pt0, pt1, cur_pos[0],cur_pos[1])
+def add_straight(cur_pos, ending_idx):
+  original = straight_endings[ending_idx]
+  trafo = affine_trafo(original, cur_pos)
 
-  print(curve_endings[1])
-  pts = [trafo(p) for p in curve_points]
-  endings = [[trafo(p) for p in curve_endings[1]][::-1]]
+  pts = [trafo(p) for p in straight_points]
+  new_ending = straight_endings[1-ending_idx]
+  new_ending = [trafo(p) for p in new_ending]
 
-  return to_path(pts), endings
+  # Arrow has to point the "other way", so switch the two points around
+  new_ending = new_ending[::-1]
 
-def add_straight(cur_pos, ending_idx = 0):
-  pt0 = straight_endings[ending_idx][0]
-  pt1 = straight_endings[ending_idx][1]
-  trafo = affine_trafo(pt0, pt1,cur_pos[0],cur_pos[1])
-  st0 = [trafo(p) for p in straight_points]
-  ending0 = (st0[1],st0[0])
-  ending1 = (st0[3],st0[2])
-  endings = [ending1]
-  return to_path(st0), endings
+  return to_path(pts), [new_ending]
+
+def add_switch(cur_pos, ending_idx = 0):
+  original = switch_endings[ending_idx]
+  trafo = affine_trafo(original, cur_pos)
+
+  pts = [trafo(p) for p in switch_points]
+  new_ending = switch_endings[ending_idx + 2]
+  new_ending = [trafo(p) for p in new_ending]
+
+  # Arrow has to point the "other way", so switch the two points around
+  new_ending = new_ending[::-1]
+  
+  return to_path(pts), [new_ending]
 
 def get_front_arrow(pos):
   p1, p2 = pos

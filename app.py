@@ -2,7 +2,7 @@ from flask import request, render_template, session, redirect, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from geometry import add_curve_left, add_curve_right, add_straight, w0, get_front_arrow
+from geometry import get_front_arrow
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
@@ -89,7 +89,7 @@ def edit():
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
-        if val in ['left','straight','right']:
+        if val in ['left','straight','right','switch']:
             tracktypes.append(val)
         elif val == 'delete':
             if len(tracktypes) > 0:
