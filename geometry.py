@@ -20,8 +20,8 @@ endings = {}
 # Straight
 points['straight'] = [(0,0),(w0,0),(w0,l0),(0,l0)]
 endings['straight'] = [
-                    [(0,0),(w0,0)],
-                    [(w0,l0),(0,l0)]
+                    [(w0,0),(0,0)],
+                    [(0,l0),(w0,l0)]
                   ]
 
 # Left curve
@@ -43,8 +43,8 @@ def curve():
   sin1 = sin(pi/6)
 
   endings = [
-      [(ri * cos0, ri * sin0), (ro * cos0, ro * sin0)],
-      [(ro * cos1, ro * sin1), (ri * cos1, ri * sin1)]
+      [(ro * cos0, ro * sin0), (ri * cos0, ri * sin0)],
+      [(ri * cos1, ri * sin1), (ro * cos1, ro * sin1)]
   ]
   return points, endings
 points['curve'], endings['curve'] = curve()
@@ -69,9 +69,9 @@ def switch():
   sin1 = sin(pi/6)
 
   endings = [
-      [(ri * cos0, ri * sin0), (ro * cos0, ro * sin0)],
-      [(ro * cos1, ro * sin1), (ri * cos1, ri * sin1)],
-      [(2*c0 - ri * cos1, ri * sin1), (2*c0 - ro * cos1, ro * sin1)],
+      [(ro * cos0, ro * sin0), (ri * cos0, ri * sin0)],
+      [(ri * cos1, ri * sin1), (ro * cos1, ro * sin1)],
+      [(2*c0 - ro * cos1, ro * sin1), (2*c0 - ri * cos1, ri * sin1)],
   ]
   return points, endings
 points['switch'], endings['switch'] = switch()
@@ -113,6 +113,8 @@ def to_path(xy):
   return [{'x':x, 'y':y} for x,y in xy]
 
 def add_piece(type, cur_pos, ending_idx):
+  # Flip the cursor_position
+  cur_pos = cur_pos[::-1]
 
   # Which ending of the piece added is used
   original = endings[type][ending_idx]
@@ -127,15 +129,15 @@ def add_piece(type, cur_pos, ending_idx):
   trafo_endings = [[trafo(p) for p in e] for e in endings[type]]
 
   # Remove the taken ending
-  trafo_endings.pop(ending_idx)
+  #trafo_endings.pop(ending_idx)
 
   # Currently, just return the first available ending
-  new_ending = trafo_endings[0]
+  #new_ending = trafo_endings[0]
 
   # Arrow has to point the "other way", so switch the two points around
-  new_ending = new_ending[::-1]
+  #new_ending = new_ending[::-1]
   
-  return to_path(trafo_points), [new_ending]
+  return to_path(trafo_points), trafo_endings
 
 def get_path_cursor(cursor):
   (x1, y1), (x2, y2) = cursor
