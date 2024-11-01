@@ -95,7 +95,7 @@ def edit():
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
-        if val in ['left','straight','right','switch']:
+        if val in ['left','straight','right','switch','crossing']:
             p1 = len(pieces) - 1
             e1 = cursor_idx
             p2 = len(pieces)

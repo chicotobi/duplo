@@ -76,6 +76,33 @@ def switch():
   return points, endings
 points['switch'], endings['switch'] = switch()
 
+# Crossing with input at the bottom, bottom left, top, top right
+# Endings are bottom (0), bottom left (1), top (2), top right (3)
+def crossing():
+  a1 = (-w0,-l0)
+  a2 = (w0,-l0)
+  a3 = (w0,l0)
+  a4 = (-w0,l0)
+  cost = cos(pi/3)
+  sint = sin(pi/3)
+  b1 = (cost * a1[0] + sint * a1[1], - sint * a1[0] + cost * a1[1])
+  b2 = (cost * a2[0] + sint * a2[1], - sint * a2[0] + cost * a2[1])
+  b3 = (cost * a3[0] + sint * a3[1], - sint * a3[0] + cost * a3[1])
+  b4 = (cost * a4[0] + sint * a4[1], - sint * a4[0] + cost * a4[1])
+  
+  v1 = w0 * 0.8
+  v2 = w0 * 1.5
+  points = [a1,a2,(w0,-v1),b3,b4,(w0,v2),a3,a4,(-w0,v1),b1,b2,(-w0,-v2)]
+
+  endings = [
+      [a2,a1],
+      [b2,b1],
+      [a4,a3],
+      [b4,b3]
+  ]
+  return points, endings
+points['crossing'], endings['crossing'] = crossing()
+
 # Helper functions
 def affine_trafo(original, transform):
   (x1, y1), (x2, y2) = original
