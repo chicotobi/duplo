@@ -84,3 +84,20 @@ def layouts_build(pieces, connections):
         all_endings[idx] = endings
 
     return pathes, all_endings
+
+def layouts_free_endings(endings, connections):
+    lst = []
+    print('---')
+    print("connections",connections)
+    for piece_idx, ends in endings.items():
+        for (ending_idx, end) in enumerate(ends):
+            print("piece_idx",piece_idx)
+            print("ending_idx",ending_idx)
+            # Find if this ending is already in connections
+            if any((connections.p1 == piece_idx) & (connections.e1 == ending_idx)):
+                continue
+            if any((connections.p1 != -1) & (connections.p2 == piece_idx) & (connections.e2 == ending_idx)):
+                continue
+            lst.append((piece_idx,ending_idx))
+    print('---')
+    return lst

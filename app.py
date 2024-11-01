@@ -6,7 +6,7 @@ from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build
+from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
 
 import pandas as pd
 
@@ -81,16 +81,23 @@ def edit():
     if request.method == 'GET':
         # Initialize from database
         pieces, connections = layouts_parse(track_id)
-        session['pieces'] = pieces['piece'].to_list()
+        pieces = pieces['piece'].to_list()
+        pathes, endings = layouts_build(pieces, connections)
+        session['pieces'] = pieces
         session['connections'] = connections.to_dict(orient = 'records')
         session['cursor_idx'] = 0
     
     # Set scope variables from session variables
     pieces = session['pieces']
     connections = pd.DataFrame(session['connections'])
+    if connections.shape[0] == 0:
+        connections = pd.DataFrame(columns=['p1','e1','p2','e2'])
     cursor_idx = session['cursor_idx']
     
-    pathes, endings = layouts_build(pieces, connections)    
+    pathes, endings = layouts_build(pieces, connections) 
+
+    free_endings = layouts_free_endings(endings,connections)
+    print('free_endings',free_endings)
 
     # Logic works with the scoped variables
     if request.method == 'POST':
@@ -152,7 +159,10 @@ def edit():
     session['connections'] = connections.to_dict(orient = 'records')
     session['cursor_idx'] = cursor_idx
         
-    pathes, endings = layouts_build(pieces, connections)
+    pathes, endings = layouts_build(pieces, connections) 
+
+    free_endings = layouts_free_endings(endings,connections)
+    print('free_endings',free_endings)
 
     npieces = len(pieces)
     cursor = endings[npieces-1][cursor_idx]
