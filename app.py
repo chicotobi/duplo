@@ -6,7 +6,7 @@ from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import pieces_update, pieces_parse, pieces_read_all, connections_read_all, pieces_build
+from sql_layouts import pieces_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build
 
 @app.route("/", methods=["GET", "POST"])
 @login_required
@@ -78,8 +78,9 @@ def edit():
 
     if request.method == 'GET':
         # Initialize from database
-        pieces = pieces_parse(track_id)
-        session['pieces'] = pieces
+        tmp, connections = layouts_parse(track_id)
+        print("tmp",tmp)
+        session['pieces'] = tmp['piece'].to_list()
         session['cursor_idx'] = 0
         session['ending_idxs'] = []
         session['ending_idxs_new_piece'] = []
@@ -91,7 +92,8 @@ def edit():
     ending_idxs_new_piece = session['ending_idxs_new_piece']
 
     if DEBUG:
-        print('pieces',pieces)
+        print("class", type(pieces))
+        print('pieces', pieces)
     
     # Logic works with the scoped variables
     if request.method == 'POST':
@@ -111,13 +113,13 @@ def edit():
                 ending_idxs_new_piece.pop()
                 cursor_idx = 0
         elif val == 'next_ending':
-            pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
+            pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
             n = len(endings[-1])
             cursor_idx = (cursor_idx + 1) % n
         elif val == 'rotate':
             if len(pieces) > 0:
                 # Rotate is very complicated in this setup
-                pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
+                pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
                 n = len(endings[-1])
 
                 # Remove the last piece and remember stuff
@@ -146,7 +148,7 @@ def edit():
     print("ending_idxs", ending_idxs)
     print("ending_idxs_new_piece", ending_idxs_new_piece)
     
-    pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
+    pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
     
     cursor = endings[-1][cursor_idx]
     path_cursor = get_path_cursor(cursor)
