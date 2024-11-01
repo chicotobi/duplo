@@ -6,7 +6,7 @@ from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import layouts_update, layouts_parse, layouts_read_all, connections_read_all, layouts_build
+from sql_layouts import pieces_update, pieces_parse, pieces_read_all, connections_read_all, pieces_build
 
 @app.route("/", methods=["GET", "POST"])
 @login_required
@@ -16,11 +16,11 @@ def index():
     if DEBUG:
         users_debug = users_read_all()
         tracks_debug = tracks_read_all()
-        pieces_debug = layouts_read_all()
+        pieces_debug = pieces_read_all()
         connections_debug = connections_read_all()
     else:
-        users_debug = tracks_debug = layouts_debug = []
-    return render_template('index.html', tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
+        users_debug = tracks_debug = pieces_debug = connections_debug = []
+    return render_template('index.html', DEBUG = DEBUG, tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
 
 @app.route("/create", methods=["GET", "POST"])
 @login_required
@@ -78,7 +78,7 @@ def edit():
 
     if request.method == 'GET':
         # Initialize from database
-        pieces = layouts_parse(track_id)
+        pieces = pieces_parse(track_id)
         session['pieces'] = pieces
         session['cursor_idx'] = 0
         session['ending_idxs'] = []
@@ -111,13 +111,13 @@ def edit():
                 ending_idxs_new_piece.pop()
                 cursor_idx = 0
         elif val == 'next_ending':
-            pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
+            pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
             n = len(endings[-1])
             cursor_idx = (cursor_idx + 1) % n
         elif val == 'rotate':
             if len(pieces) > 0:
                 # Rotate is very complicated in this setup
-                pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
+                pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
                 n = len(endings[-1])
 
                 # Remove the last piece and remember stuff
@@ -133,7 +133,7 @@ def edit():
                 ending_idxs.append(last_ending_idx)
                 ending_idxs_new_piece.append(last_ending_idx_new_piece)
         elif val == 'save':
-            layouts_update(track_id = track_id, pieces = pieces)
+            pieces_update(track_id = track_id, pieces = pieces)
             return redirect("/")
 
     # Set session variables from scope variables
@@ -146,7 +146,8 @@ def edit():
     print("ending_idxs", ending_idxs)
     print("ending_idxs_new_piece", ending_idxs_new_piece)
     
-    pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
+    pathes, endings = pieces_build(pieces, ending_idxs, ending_idxs_new_piece)
+    
     cursor = endings[-1][cursor_idx]
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
