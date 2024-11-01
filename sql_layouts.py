@@ -21,7 +21,14 @@ def pieces_update(track_id, pieces):
     cmd = f"delete from pieces where track_id = '{track_id}'"
     sql(cmd)
     for (idx, piece) in enumerate(pieces):
-        cmd = f"insert into pieces (track_id, idx, piece) values ('{track_id}','{idx}','{piece}')"
+        cmd = f"insert into pieces (track_id, idx, piece) values ({track_id},{idx},'{piece}')"
+        sql(cmd)
+
+def connections_update(track_id, p1a, e1a, p2a, e2a):
+    cmd = f"delete from connections where track_id = '{track_id}'"
+    sql(cmd)
+    for (p1, e1, p2, e2) in zip(p1a,e1a,p2a,e2a):
+        cmd = f"insert into connections (track_id, p1, e1, p2, e2) values ({track_id},{p1},{e1},{p2},{e2})"
         sql(cmd)
 
 

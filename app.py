@@ -6,7 +6,7 @@ from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import pieces_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build
+from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build
 
 import pandas as pd
 
@@ -134,6 +134,7 @@ def edit():
                 connections.loc[connections.p2 == current_piece,'e2'] = current_ending
         elif val == 'save':
             pieces_update(track_id = track_id, pieces = pieces)
+            connections_update(track_id = track_id, p1a = connections.p1.values, e1a = connections.e1.values, p2a = connections.p2.values, e2a = connections.e2.values)
             return redirect("/")
 
 
