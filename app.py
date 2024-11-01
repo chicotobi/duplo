@@ -103,14 +103,23 @@ def edit():
                 e2 = 1
             else:
                 e2 = 0
-            cursor_idx = 0
+            if val in ['straight', 'left', 'switch']:
+                cursor_idx = 1
+            else:
+                cursor_idx = 0
             pieces.append(val)
             new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
             connections = pd.concat([connections,new_connections_row])
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
-                cursor_idx = 0
+                # Remove all registered connections
+                connections = connections[connections.p1 != len(pieces)]
+                connections = connections[connections.p2 != len(pieces)]
+                if len(pieces) > 0 and pieces[-1] in ['straight', 'left', 'switch']:
+                    cursor_idx = 1
+                else:
+                    cursor_idx = 0
         elif val == 'next_ending':
             if len(pieces) > 0:
                 npieces = len(pieces)
