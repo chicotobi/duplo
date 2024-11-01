@@ -9,6 +9,7 @@
 <img src="static/main.png" alt="main" style="width: 100%;"/>
 
 {% if DEBUG %}
+
 <table>
     <tr>
         <th>id</th>
@@ -46,15 +47,37 @@
         <th>idx</th>
         <th>tracktype</th>
     </tr>
-{% for row in layouts_debug %}
+{% for row in pieces_debug %}
 <tr>
   <td>{{ row['id'] }}</td>
   <td>{{ row['track_id'] }}</td>
   <td>{{ row['idx'] }}</td>
-  <td>{{ row['tracktype'] }}</td>
+  <td>{{ row['piece'] }}</td>
 </tr>
 {% endfor %}
 </table>
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>track_id</th>
+        <th>p1</th>
+        <th>e1</th>
+        <th>p2</th>
+        <th>e2</th>
+    </tr>
+{% for row in connections_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['track_id'] }}</td>
+  <td>{{ row['p1'] }}</td>
+  <td>{{ row['e1'] }}</td>
+  <td>{{ row['p2'] }}</td>
+  <td>{{ row['e2'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
 {% endif %}
 
 {% endblock %}

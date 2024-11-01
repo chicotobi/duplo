@@ -6,7 +6,7 @@ from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
-from sql_layouts import layouts_update, layouts_parse, layouts_read_all, layouts_build
+from sql_layouts import layouts_update, layouts_parse, layouts_read_all, connections_read_all, layouts_build
 
 @app.route("/", methods=["GET", "POST"])
 @login_required
@@ -16,10 +16,11 @@ def index():
     if DEBUG:
         users_debug = users_read_all()
         tracks_debug = tracks_read_all()
-        layouts_debug = layouts_read_all()
+        pieces_debug = layouts_read_all()
+        connections_debug = connections_read_all()
     else:
         users_debug = tracks_debug = layouts_debug = []
-    return render_template('index.html', tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, layouts_debug = layouts_debug)
+    return render_template('index.html', tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
 
 @app.route("/create", methods=["GET", "POST"])
 @login_required
