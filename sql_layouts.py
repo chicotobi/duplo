@@ -66,19 +66,10 @@ def layouts_build(pieces, connections):
     zero_position = [(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]
     all_endings = {-1: [zero_position]}
     for idx, piece in enumerate(pieces):
-        print()
-        print()
-        print('----')
-        print(idx,piece)
         tmp = connections[connections.p2 == idx]        
         
-        print('tmp',tmp)
-        print('tmp.e1',tmp.e1)
-        print('tmp.e1[0]',tmp.e1.values[0])
         e1 = tmp.e1.values[0]        
-        e2 = tmp.e2.values[0]
-        
-        print(e1,e2)
+        e2 = tmp.e2.values[0]        
 
         if idx == 0:
             cursor_position = all_endings[-1][0]
@@ -91,15 +82,5 @@ def layouts_build(pieces, connections):
         pts, endings = add_piece(piece, cursor_position, e2)
         pathes += [pts]
         all_endings[idx] = endings
-        print('----')
-
-    print()
-    print()
-    print('----')
-    print('all_endings', all_endings)
-    print('----')
-    print()
-    print()
-    print()
 
     return pathes, all_endings

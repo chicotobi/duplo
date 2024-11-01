@@ -151,11 +151,7 @@ def edit():
     session['pieces'] = pieces
     session['connections'] = connections.to_dict(orient = 'records')
     session['cursor_idx'] = cursor_idx
-    
-    print("pieces", pieces)
-    print("connections", connections)
-    print("cursor_idx", cursor_idx)
-    
+        
     pathes, endings = layouts_build(pieces, connections)
 
     npieces = len(pieces)
