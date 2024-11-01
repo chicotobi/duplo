@@ -8,6 +8,8 @@ from sql_users import users_create, users_read, users_read_hash, users_read_all
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
 from sql_layouts import pieces_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build
 
+import pandas as pd
+
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def index():
@@ -78,79 +80,75 @@ def edit():
 
     if request.method == 'GET':
         # Initialize from database
-        tmp, connections = layouts_parse(track_id)
-        print("tmp",tmp)
-        session['pieces'] = tmp['piece'].to_list()
+        pieces, connections = layouts_parse(track_id)
+        session['pieces'] = pieces['piece'].to_list()
+        session['connections'] = connections.to_dict(orient = 'records')
         session['cursor_idx'] = 0
-        session['ending_idxs'] = []
-        session['ending_idxs_new_piece'] = []
     
     # Set scope variables from session variables
     pieces = session['pieces']
+    connections = pd.DataFrame(session['connections'])
     cursor_idx = session['cursor_idx']
-    ending_idxs = session['ending_idxs']
-    ending_idxs_new_piece = session['ending_idxs_new_piece']
-
-    if DEBUG:
-        print("class", type(pieces))
-        print('pieces', pieces)
     
+    pathes, endings = layouts_build(pieces, connections)    
+
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
         if val in ['left','straight','right','switch']:
-            pieces.append(val)
-            ending_idxs.append(cursor_idx)
+            p1 = len(pieces) - 1
+            e1 = cursor_idx
+            p2 = len(pieces)
             if val == 'right':
-                ending_idxs_new_piece.append(1)
+                e2 = 1
             else:
-                ending_idxs_new_piece.append(0)
+                e2 = 0
+            pieces.append(val)
+            new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
+            connections = pd.concat([connections,new_connections_row])
             cursor_idx = 0
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
-                ending_idxs.pop()
-                ending_idxs_new_piece.pop()
                 cursor_idx = 0
         elif val == 'next_ending':
-            pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
-            n = len(endings[-1])
-            cursor_idx = (cursor_idx + 1) % n
+            if len(pieces) > 0:
+                npieces = len(pieces)
+                n = len(endings[npieces-1])
+                cursor_idx = (cursor_idx + 1) % n
         elif val == 'rotate':
             if len(pieces) > 0:
                 # Rotate is very complicated in this setup
-                pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
+                pathes, endings = layouts_build(pieces, connections)
                 n = len(endings[-1])
 
                 # Remove the last piece and remember stuff
                 last_piece = pieces.pop()
-                last_ending_idx = ending_idxs.pop()
-                last_ending_idx_new_piece = ending_idxs_new_piece.pop()
                 
                 # now increase the cursor index 
                 last_ending_idx_new_piece = (last_ending_idx_new_piece + 1) % n
 
                 # Now add the piece
                 pieces.append(last_piece)
-                ending_idxs.append(last_ending_idx)
-                ending_idxs_new_piece.append(last_ending_idx_new_piece)
         elif val == 'save':
             pieces_update(track_id = track_id, pieces = pieces)
             return redirect("/")
 
+
     # Set session variables from scope variables
     session['pieces'] = pieces
+    session['connections'] = connections.to_dict(orient = 'records')
     session['cursor_idx'] = cursor_idx
-    session['ending_idxs'] = ending_idxs
-    session['ending_idxs_new_piece'] = ending_idxs_new_piece
     
+    print("pieces", pieces)
+    print("connections", connections)
     print("cursor_idx", cursor_idx)
-    print("ending_idxs", ending_idxs)
-    print("ending_idxs_new_piece", ending_idxs_new_piece)
     
-    pathes, endings = layouts_build(pieces, ending_idxs, ending_idxs_new_piece)
-    
-    cursor = endings[-1][cursor_idx]
+    pathes, endings = layouts_build(pieces, connections)
+
+    npieces = len(pieces)
+    cursor = endings[npieces-1][cursor_idx]
+
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
 

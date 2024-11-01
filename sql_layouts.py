@@ -52,21 +52,47 @@ def layouts_parse(track_id):
         connections = pd.DataFrame(columns=['p1','e1','p2','e2'])
     return pieces, connections
 
-def layouts_build(pieces, ending_idxs_last_piece, ending_idxs_new_piece):
+def layouts_build(pieces, connections):
     pathes = []
     x0 = 250
     y0 = 250
-    all_endings = [[[(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]]]
-    for piece, cursor_idx, ending_idx in zip(pieces, ending_idxs_last_piece, ending_idxs_new_piece):
-        cursor_position = all_endings[-1][cursor_idx]
-        if piece == 'right':
-            type = 'curve'
-        elif piece == 'left':
-            type = 'curve'        
+    zero_position = [(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]
+    all_endings = {-1: [zero_position]}
+    for idx, piece in enumerate(pieces):
+        print()
+        print()
+        print('----')
+        print(idx,piece)
+        tmp = connections[connections.p2 == idx]        
+        
+        print('tmp',tmp)
+        print('tmp.e1',tmp.e1)
+        print('tmp.e1[0]',tmp.e1.values[0])
+        e1 = tmp.e1.values[0]        
+        e2 = tmp.e2.values[0]
+        
+        print(e1,e2)
+
+        if idx == 0:
+            cursor_position = all_endings[-1][0]
         else:
-            type = piece
-        pts, endings = add_piece(type, cursor_position, ending_idx)
+            cursor_position = all_endings[idx-1][e1]
+
+        if piece in ['left', 'right']:
+            piece = 'curve'
+
+        pts, endings = add_piece(piece, cursor_position, e2)
         pathes += [pts]
-        all_endings += [endings]
+        all_endings[idx] = endings
+        print('----')
+
+    print()
+    print()
+    print('----')
+    print('all_endings', all_endings)
+    print('----')
+    print()
+    print()
+    print()
 
     return pathes, all_endings
