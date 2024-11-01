@@ -103,10 +103,10 @@ def edit():
                 e2 = 1
             else:
                 e2 = 0
+            cursor_idx = 0
             pieces.append(val)
             new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
             connections = pd.concat([connections,new_connections_row])
-            cursor_idx = 0
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
@@ -118,18 +118,20 @@ def edit():
                 cursor_idx = (cursor_idx + 1) % n
         elif val == 'rotate':
             if len(pieces) > 0:
-                # Rotate is very complicated in this setup
-                pathes, endings = layouts_build(pieces, connections)
-                n = len(endings[-1])
+                # Get the index of the current element
+                current_piece = len(pieces) - 1
 
-                # Remove the last piece and remember stuff
-                last_piece = pieces.pop()
-                
-                # now increase the cursor index 
-                last_ending_idx_new_piece = (last_ending_idx_new_piece + 1) % n
+                # Number of endings for this piece
+                n = len(endings[current_piece])
 
-                # Now add the piece
-                pieces.append(last_piece)
+                # Now get the current ending idx
+                current_ending = connections[connections.p2 == current_piece].e2.values[0]
+
+                # Now increase this index
+                current_ending = (current_ending + 1) % n
+
+                # Now set the increased ending idx
+                connections.loc[connections.p2 == current_piece,'e2'] = current_ending
         elif val == 'save':
             pieces_update(track_id = track_id, pieces = pieces)
             return redirect("/")
