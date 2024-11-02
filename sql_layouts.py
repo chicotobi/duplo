@@ -16,6 +16,7 @@ import pandas as pd
 # insert into connections (track_id,p1,e1,p2,e2) values (33, 1, 1,2,0); 
 
 # create table pieces (id int NOT NULL AUTO_INCREMENT, track_id int not null, idx int not null, piece varchar(10) not null, primary key (id));
+# create table connections (id int NOT NULL AUTO_INCREMENT, track_id int not null, p1 int not null, e1 int not null, p2 int not null, e2 int not null, primary key(id));
 
 def pieces_update(track_id, pieces):
     cmd = f"delete from pieces where track_id = '{track_id}'"
