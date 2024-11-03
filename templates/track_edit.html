@@ -7,11 +7,11 @@
 {% block main %}
     <form action="/track_edit" method="post">
       <div class="button-container">
-        <input class="edit_buttons_top" type ="submit" name="left"     value = "Left curve &ShortLeftArrow;">
-        <input class="edit_buttons_top" type ="submit" name="straight" value = "Straight &ShortUpArrow;">
-        <input class="edit_buttons_top" type ="submit" name="right"    value = "Right curve &ShortRightArrow;">
-        <input class="edit_buttons_top" type ="submit" name="switch"   value = "Switch">
-        <input class="edit_buttons_top" type ="submit" name="crossing"   value = "Crossing">
+        <input class="edit_buttons_top" type ="submit" name="left"     value = "Left curve &ShortLeftArrow; ({{ lib.curve }} / {{ lib.n_curves }})">
+        <input class="edit_buttons_top" type ="submit" name="straight" value = "Straight &ShortUpArrow;  ({{ lib.straight }} / {{ lib.n_straights }})">
+        <input class="edit_buttons_top" type ="submit" name="right"    value = "Right curve &ShortRightArrow;  ({{ lib.curve }} / {{ lib.n_curves }})">
+        <input class="edit_buttons_top" type ="submit" name="switch"   value = "Switch  ({{ lib.switch }} / {{ lib.n_switches }})">
+        <input class="edit_buttons_top" type ="submit" name="crossing"   value = "Crossing  ({{ lib.crossing }} / {{ lib.n_crossings }})">
       </div>
       <div class="button-container">
         <input class="edit_buttons_bottom" type ="submit" name="rotate"      value = "Rotate piece &circlearrowright;">

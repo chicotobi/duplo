@@ -1,6 +1,8 @@
 from helpers import sql
 
-# create table users (id integer primary key autoincrement, name text not null, hash text not null);
+# create table users (id integer primary key autoincrement, name text not null, hash text not null,
+# n_straights integer, n_curves integer, n_switches integer, n_crossings integer);
+
 # create table users (id int NOT NULL AUTO_INCREMENT, name text not null, hash text not null, primary key (id));
 
 def users_create(name, hash):
@@ -22,4 +24,12 @@ def users_delete(user_id):
 
 def users_read_all():
     cmd = f"select * from users"
+    return sql(cmd)
+
+def users_library_set(user_id, straights, curves, switches, crossings):
+    cmd = f"update users set n_straights = {straights}, n_curves = {curves}, n_switches = {switches}, n_crossings = {crossings} where id = '{user_id}'"
+    return sql(cmd)
+
+def users_library_read(user_id):
+    cmd = f"select n_straights, n_curves, n_switches, n_crossings from users where id = '{user_id}'"
     return sql(cmd)

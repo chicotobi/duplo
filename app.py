@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
-from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete
+from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete, users_library_set, users_library_read
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
 from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
 
@@ -124,6 +124,14 @@ def edit():
         session['pieces'] = pieces
         session['connections'] = connections.to_dict(orient = 'records')
         session['cursor_idx'] = 0
+        
+        user_lib = users_library_read(session['user_id'])[0]
+        if 'n_straights' not in user_lib.keys():
+            user_lib['n_straights'] = 99
+            user_lib['n_curves'   ] = 99
+            user_lib['n_switches' ] = 99
+            user_lib['n_crossings'] = 99
+        session['user_lib'] = user_lib
     
     # Set scope variables from session variables
     pieces = session['pieces']
@@ -137,24 +145,35 @@ def edit():
     free_endings = layouts_free_endings(endings,connections)
     print('free_endings',free_endings)
 
+    lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
+    lib = {**lib1, **session['user_lib']}
+
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
         if val in ['left','straight','right','switch','crossing']:
-            p1 = len(pieces) - 1
-            e1 = cursor_idx
-            p2 = len(pieces)
-            if val == 'right':
-                e2 = 1
-            else:
-                e2 = 0
-            if val in ['straight', 'left', 'switch']:
-                cursor_idx = 1
-            else:
-                cursor_idx = 0
-            pieces.append(val)
-            new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
-            connections = pd.concat([connections,new_connections_row])
+            if (
+                (val in ['straight'    ] and lib['straight'] < lib['n_straights']) or
+                (val in ['left','right'] and lib['curve'   ] < lib['n_curves'   ]) or
+                (val in ['switch'      ] and lib['switch'  ] < lib['n_switches' ]) or
+                (val in ['crossing'    ] and lib['crossing'] < lib['n_crossings'])
+                ):
+                p1 = len(pieces) - 1
+                e1 = cursor_idx
+                p2 = len(pieces)
+                if val == 'right':
+                    e2 = 1
+                else:
+                    e2 = 0
+                if val in ['straight', 'left', 'switch']:
+                    cursor_idx = 1
+                else:
+                    cursor_idx = 0
+                if val in ['left','right']:
+                    val = 'curve'
+                pieces.append(val)
+                new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
+                connections = pd.concat([connections,new_connections_row])
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
@@ -191,6 +210,8 @@ def edit():
             connections_update(track_id = track_id, p1a = connections.p1.values, e1a = connections.e1.values, p2a = connections.p2.values, e2a = connections.e2.values)
             return redirect("/")
 
+    lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
+    lib = {**lib1, **session['user_lib']}
 
     # Set session variables from scope variables
     session['pieces'] = pieces
@@ -208,8 +229,43 @@ def edit():
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
 
-    return render_template('track_edit.html', title = track_title, path = path)
+    return render_template('track_edit.html', title = track_title, path = path, lib = lib)
 
+@app.route("/library_set", methods=["GET", "POST"])
+@login_required
+def library_set():    
+    user_id = session['user_id']
+
+
+    user_lib = users_library_read(session['user_id'])[0]
+    if 'n_straights' not in user_lib.keys():
+        user_lib['n_straights'] = 99
+        user_lib['n_curves'   ] = 99
+        user_lib['n_switches' ] = 99
+        user_lib['n_crossings'] = 99
+
+    if request.method == "GET":
+        # Get available tracks for this user
+        return render_template("library_set.html", lib = user_lib)
+    
+    # Input check
+    if not request.form.get("straights"):
+        return error("Straight not set")
+    if not request.form.get("curves"):
+        return error("Curves not set")
+    if not request.form.get("switches"):
+        return error("Switches not set")
+    if not request.form.get("crossings"):
+        return error("Crossings not set")
+    
+    straights = request.form.get("straights")
+    curves    = request.form.get("curves")
+    switches  = request.form.get("switches")
+    crossings = request.form.get("crossings")
+    
+    users_library_set(user_id, straights, curves, switches, crossings)
+
+    return redirect("/")
 
 @app.route("/user_register", methods=["GET", "POST"])
 def user_register():
