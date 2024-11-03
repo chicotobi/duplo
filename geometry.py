@@ -90,8 +90,12 @@ def crossing():
   b3 = (cost * a3[0] + sint * a3[1], - sint * a3[0] + cost * a3[1])
   b4 = (cost * a4[0] + sint * a4[1], - sint * a4[0] + cost * a4[1])
   
-  v1 = w0 * 0.8
-  v2 = w0 * 1.5
+  # Calculate the tricky corner points
+  m = ( b4[1] - b1[1] ) / ( b4[0] - b1[0] )
+  y0 = b4[1] - m * b4[0]
+  v1 = m * -w0 + y0
+  v2 = m *  w0 + y0
+
   points = [a1,a2,(w0,-v1),b3,b4,(w0,v2),a3,a4,(-w0,v1),b1,b2,(-w0,-v2)]
 
   endings = [
