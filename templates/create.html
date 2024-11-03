@@ -7,7 +7,7 @@
 {% block main %}
 <form action="/create" method="post">
     <div class="mb-3">
-        <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="title" placeholder="Title" type="text">
+        <input autocomplete="off" pattern="[A-Za-z0-9]+" autofocus class="form-control mx-auto w-auto" name="title" placeholder="Title" type="text">
     </div>
     <button class="btn btn-primary" type="submit">Create new track</button>
 </form>
