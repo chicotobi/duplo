@@ -4,7 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
-from sql_users import users_create, users_read, users_read_hash, users_read_all
+from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
 from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
 
@@ -111,6 +111,17 @@ def delete():
     
     tracks_delete(user_id, track_id)
 
+    return redirect("/")
+
+@app.route("/user_delete", methods=["GET", "POST"])
+@login_required
+def user_delete():    
+    user_id = session['user_id']
+    if request.method == "GET":
+        return render_template("user_delete.html")
+        
+    users_delete(user_id)
+    session.clear()
     return redirect("/")
 
 
