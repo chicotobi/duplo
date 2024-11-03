@@ -3,7 +3,8 @@ from helpers import sql
 # CREATE TABLE tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL,
 # CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
 
-# create table tracks (id int NOT NULL AUTO_INCREMENT, user_id int not null, title text not null, primary key (id));
+# CREATE TABLE tracks (id INT NOT NULL AUTO_INCREMENT, user_id INT NOT NULL, title TEXT NOT NULL, PRIMARY KEY (id),
+# CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
 
 def tracks_create(user_id, title):
     cmd = f"insert into tracks (user_id, title) values ('{user_id}','{title}')"

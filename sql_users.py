@@ -1,9 +1,10 @@
 from helpers import sql
 
-# create table users (id integer primary key autoincrement, name text not null, hash text not null,
+# CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name text not null, hash text not null,
 # n_straights integer, n_curves integer, n_switches integer, n_crossings integer);
 
-# create table users (id int NOT NULL AUTO_INCREMENT, name text not null, hash text not null, primary key (id));
+# CREATE TABLE users (id int NOT NULL AUTO_INCREMENT, name TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (id),
+# n_straights INT, n_curves INT, n_switches INT, n_crossings INT);
 
 def users_create(name, hash):
     cmd = f"insert into users (name, hash) values ('{name}','{hash}')"
