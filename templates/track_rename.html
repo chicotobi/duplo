@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    Open track
+    Rename track
 {% endblock %}
 
 {% block main %}
-<form action="/open" method="post">
+<form action="/track_rename" method="post">
     <div class="mb-3">
         <select class="form-select" name="track_id" placeholder="Title">
             {% for track in tracks %}
@@ -13,6 +13,9 @@
             {% endfor %}
         </select>
     </div>
-    <button type="submit" class="btn btn-primary">Open track</button>
+    <div class="mb-3">
+        <input autocomplete="off" pattern="[A-Za-z0-9]+" autofocus class="form-control mx-auto w-auto" name="new_title" placeholder="New title" type="text">
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
 </form>
 {% endblock %}

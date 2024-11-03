@@ -47,10 +47,10 @@
                                   Tracks
                                 </a>
                                 <div class="dropdown-menu" aria-labelledby="trackDropdown">
-                                  <a class="dropdown-item" href="/create">Create</a>
-                                  <a class="dropdown-item" href="/open">Open</a>
-                                  <a class="dropdown-item" href="/rename">Rename</a>
-                                  <a class="dropdown-item" href="/delete">Delete</a>
+                                  <a class="dropdown-item" href="/track_create">Create</a>
+                                  <a class="dropdown-item" href="/track_open">Open</a>
+                                  <a class="dropdown-item" href="/track_rename">Rename</a>
+                                  <a class="dropdown-item" href="/track_delete">Delete</a>
                                 </div>
                               </li>                              
                             <li class="nav-item dropdown">
@@ -59,14 +59,14 @@
                                 </a>
                                 <div class="dropdown-menu" aria-labelledby="trackDropdown">
                                   <a class="dropdown-item" href="/user_delete">Delete account</a>
-                                  <a class="dropdown-item" href="/logout">Log out</a>
+                                  <a class="dropdown-item" href="/user_logout">Log out</a>
                                 </div>
                               </li>
                         </ul>
                     {% else %}
-                        <ul class="navbar-nav ms-auto mt-2">
-                            <li class="nav-item"><a class="nav-link" href="/register">Register</a></li>
-                            <li class="nav-item"><a class="nav-link" href="/login">Log In</a></li>
+                        <ul class="navbar-nav me-auto mt-2">
+                            <li class="nav-item"><a class="nav-link" href="/user_register">Register</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/user_login">Log In</a></li>
                         </ul>
                     {% endif %}
                 </div>

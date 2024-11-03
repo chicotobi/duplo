@@ -11,10 +11,7 @@ from sql_layouts import pieces_update, connections_update, layouts_parse, pieces
 import pandas as pd
 
 @app.route("/", methods=["GET", "POST"])
-@login_required
 def index():
-    user_id = session["user_id"]
-    tracks = tracks_read(user_id = user_id)
     if DEBUG:
         users_debug = users_read_all()
         tracks_debug = tracks_read_all()
@@ -22,13 +19,13 @@ def index():
         connections_debug = connections_read_all()
     else:
         users_debug = tracks_debug = pieces_debug = connections_debug = []
-    return render_template('index.html', DEBUG = DEBUG, tracks = tracks, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
+    return render_template('index.html', DEBUG = DEBUG, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
 
-@app.route("/create", methods=["GET", "POST"])
+@app.route("/track_create", methods=["GET", "POST"])
 @login_required
-def create():    
+def track_create():    
     if request.method == "GET":
-        return render_template("create.html")
+        return render_template("track_create.html")
     
     # Input check
     if not request.form.get("title"):
@@ -49,16 +46,16 @@ def create():
     session['track_id'] = track_ids[0]["id"]
     session['track_title'] = title
 
-    return redirect("/edit")
+    return redirect("/track_edit")
 
 
-@app.route("/open", methods=["GET", "POST"])
+@app.route("/track_open", methods=["GET", "POST"])
 @login_required
-def open():    
+def track_open():    
     if request.method == "GET":
         # Get available tracks for this user
         tracks = tracks_read(user_id = session['user_id'])
-        return render_template("open.html", tracks = tracks)
+        return render_template("track_open.html", tracks = tracks)
     
     # Input check
     if not request.form.get("track_id"):
@@ -69,16 +66,16 @@ def open():
     titles = tracks_read_id(track_id)
     session['track_title'] = titles[0]["title"]
 
-    return redirect("/edit")
+    return redirect("/track_edit")
 
-@app.route("/rename", methods=["GET", "POST"])
+@app.route("/track_rename", methods=["GET", "POST"])
 @login_required
-def rename():    
+def track_rename():    
     user_id = session['user_id']
     if request.method == "GET":
         # Get available tracks for this user
         tracks = tracks_read(user_id)
-        return render_template("rename.html", tracks = tracks)
+        return render_template("track_rename.html", tracks = tracks)
     
     # Input check
     if not request.form.get("track_id"):
@@ -95,14 +92,14 @@ def rename():
 
     return redirect("/")
 
-@app.route("/delete", methods=["GET", "POST"])
+@app.route("/track_delete", methods=["GET", "POST"])
 @login_required
-def delete():    
+def track_delete():    
     user_id = session['user_id']
     if request.method == "GET":
         # Get available tracks for this user
         tracks = tracks_read(user_id)
-        return render_template("delete.html", tracks = tracks)
+        return render_template("track_delete.html", tracks = tracks)
     
     # Input check
     if not request.form.get("track_id"):
@@ -113,19 +110,7 @@ def delete():
 
     return redirect("/")
 
-@app.route("/user_delete", methods=["GET", "POST"])
-@login_required
-def user_delete():    
-    user_id = session['user_id']
-    if request.method == "GET":
-        return render_template("user_delete.html")
-        
-    users_delete(user_id)
-    session.clear()
-    return redirect("/")
-
-
-@app.route('/edit', methods=['GET', 'POST'])
+@app.route('/track_edit', methods=['GET', 'POST'])
 @login_required
 def edit():
     track_id = session['track_id']
@@ -223,16 +208,16 @@ def edit():
     path_cursor = get_path_cursor(cursor)
     path = pathes + [path_cursor]
 
-    return render_template('edit.html', title = track_title, path = path)
+    return render_template('track_edit.html', title = track_title, path = path)
 
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
+@app.route("/user_register", methods=["GET", "POST"])
+def user_register():
     # Forget any user_id
     session.clear()
 
     if request.method == "GET":
-        return render_template("register.html")
+        return render_template("user_register.html")
 
     # Input check
     if not request.form.get("name"):
@@ -261,15 +246,15 @@ def register():
     return redirect("/")
 
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
+@app.route("/user_login", methods=["GET", "POST"])
+def user_login():
     """Log user in"""
 
     # Forget any user_id
     session.clear()
 
     if request.method == "GET":
-        return render_template("login.html")
+        return render_template("user_login.html")
 
     # Input check
     if not request.form.get("name"):
@@ -294,9 +279,19 @@ def login():
     session["user_id"] = ids[0]["id"]
 
     return redirect("/")
-
     
-@app.route("/logout")
-def logout():
+@app.route("/user_delete", methods=["GET", "POST"])
+@login_required
+def user_delete():    
+    user_id = session['user_id']
+    if request.method == "GET":
+        return render_template("user_delete.html")
+        
+    users_delete(user_id)
+    session.clear()
+    return redirect("/")
+
+@app.route("/user_logout")
+def user_logout():
     session.clear()
     return redirect("/")
