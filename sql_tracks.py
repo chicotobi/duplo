@@ -1,6 +1,8 @@
 from helpers import sql
 
-# create table tracks (id integer primary key autoincrement, user_id integer not null, title text not null);
+# CREATE TABLE tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL,
+# CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
+
 # create table tracks (id int NOT NULL AUTO_INCREMENT, user_id int not null, title text not null, primary key (id));
 
 def tracks_create(user_id, title):
@@ -17,6 +19,11 @@ def tracks_read_title(user_id, title):
 
 def tracks_update_title(user_id, track_id, new_title):
     cmd = f"update tracks set title = '{new_title}' where user_id = '{user_id}' and id = '{track_id}'"
+    return sql(cmd)
+
+def tracks_delete(user_id, track_id):
+    sql("PRAGMA foreign_keys=ON")
+    cmd = f"delete from tracks where user_id = '{user_id}' and id = '{track_id}'"
     return sql(cmd)
 
 def tracks_read_id(id):

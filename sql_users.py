@@ -15,6 +15,11 @@ def users_read_hash(name):
     cmd = f"select hash from users where name = '{name}'"
     return sql(cmd)
 
+def users_delete(user_id):
+    sql("PRAGMA foreign_keys=ON")
+    cmd = f"delete from users where user_id = '{user_id}'"
+    return sql(cmd)
+
 def users_read_all():
     cmd = f"select * from users"
     return sql(cmd)

@@ -3,8 +3,14 @@ from geometry import w0, add_piece
 
 import pandas as pd
 
-# create table pieces (id integer primary key autoincrement, track_id integer not null, idx integer not null, piece varchar(10) not null);
-# create table connections (id integer primary key autoincrement, track_id integer not null, p1 integer not null, e1 integer not null, p2 integer not null, e2 integer not null);
+#  CREATE TABLE pieces (id integer primary key autoincrement, track_id integer not null, idx integer not null, piece varchar(10) not null,
+#  CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
+#  create table connections (id integer primary key autoincrement, track_id integer not null,
+#  p1 integer not null,
+#  e1 integer not null,
+#  p2 integer not null,
+#  e2 integer not null,
+#  CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
 
 # delete from pieces;    
 # delete from connections;

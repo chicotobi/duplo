@@ -9,10 +9,6 @@ from sqlalchemy.sql import text
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 
-# Session stuff for global variables
-#app.config['SESSION_TYPE'] = 'filesystem'
-#Session(app)
-
 DEBUG = True
 
 # Database connection
@@ -36,7 +32,7 @@ def sql(cmd):
     if DEBUG:
         print(cmd)
     result = db.session.execute(text(cmd))
-    if 'insert' in cmd or 'update' in cmd:
+    if any(i in cmd for i in ['insert', 'update', 'delete', 'PRAGMA']):
         db.session.commit()
     if 'select' in cmd:
         result = [dict(row._mapping) for row in result]

@@ -5,7 +5,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
-from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title
+from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
 from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
 
 import pandas as pd
@@ -92,6 +92,24 @@ def rename():
         return error("Title already taken")
     
     tracks_update_title(user_id, track_id, new_title)
+
+    return redirect("/")
+
+@app.route("/delete", methods=["GET", "POST"])
+@login_required
+def delete():    
+    user_id = session['user_id']
+    if request.method == "GET":
+        # Get available tracks for this user
+        tracks = tracks_read(user_id)
+        return render_template("delete.html", tracks = tracks)
+    
+    # Input check
+    if not request.form.get("track_id"):
+        return error("Track not selected")
+    track_id = request.form.get("track_id")
+    
+    tracks_delete(user_id, track_id)
 
     return redirect("/")
 
