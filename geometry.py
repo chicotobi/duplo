@@ -53,7 +53,7 @@ points['curve'], endings['curve'] = curve()
 # Endings are bottom (0) and top left (1) and top right (2)
 def switch():
   n = 10
-  m = round(n * 0.6)
+  m = round(n * 0.6) # Good estimate for how far the inner arcs of the switch go in
   t = [i / (n-1) * pi / 6 for i in range(n)]
   x0 = [cos(i) for i in t]
   y0 = [sin(i) for i in t]
