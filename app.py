@@ -5,7 +5,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from geometry import get_path_cursor
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all
-from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all
+from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title
 from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
 
 import pandas as pd
@@ -70,6 +70,30 @@ def open():
     session['track_title'] = titles[0]["title"]
 
     return redirect("/edit")
+
+@app.route("/rename", methods=["GET", "POST"])
+@login_required
+def rename():    
+    user_id = session['user_id']
+    if request.method == "GET":
+        # Get available tracks for this user
+        tracks = tracks_read(user_id)
+        return render_template("rename.html", tracks = tracks)
+    
+    # Input check
+    if not request.form.get("track_id"):
+        return error("Track not selected")
+    track_id = request.form.get("track_id")
+    if not request.form.get("new_title"):
+        return error("No new title given")
+    new_title = request.form.get("new_title")
+    tracks = tracks_read_title(user_id, new_title)
+    if len(tracks) > 0:
+        return error("Title already taken")
+    
+    tracks_update_title(user_id, track_id, new_title)
+
+    return redirect("/")
 
 
 @app.route('/edit', methods=['GET', 'POST'])

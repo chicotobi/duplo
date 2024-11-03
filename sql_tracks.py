@@ -15,6 +15,10 @@ def tracks_read_title(user_id, title):
     cmd = f"select id from tracks where user_id = '{user_id}' and title = '{title}'"
     return sql(cmd)
 
+def tracks_update_title(user_id, track_id, new_title):
+    cmd = f"update tracks set title = '{new_title}' where user_id = '{user_id}' and id = '{track_id}'"
+    return sql(cmd)
+
 def tracks_read_id(id):
     cmd = f"select title from tracks where id = '{id}'"
     return sql(cmd)

@@ -36,7 +36,7 @@ def sql(cmd):
     if DEBUG:
         print(cmd)
     result = db.session.execute(text(cmd))
-    if 'insert' in cmd:
+    if 'insert' in cmd or 'update' in cmd:
         db.session.commit()
     if 'select' in cmd:
         result = [dict(row._mapping) for row in result]
