@@ -1,8 +1,10 @@
 from helpers import sql
 
-# CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name text not null, hash text not null,
-# n_straights integer, n_curves integer, n_switches integer, n_crossings integer);
+# --- SQLite
+# CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, hash TEXT NOT NULL,
+# n_straights INTEGER, n_curves INTEGER, n_switches INTEGER, n_crossings INTEGER);
 
+# --- MySQL
 # CREATE TABLE users (id int NOT NULL AUTO_INCREMENT, name TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (id),
 # n_straights INT, n_curves INT, n_switches INT, n_crossings INT);
 

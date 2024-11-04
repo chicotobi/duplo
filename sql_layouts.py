@@ -3,29 +3,21 @@ from geometry import w0, add_piece
 
 import pandas as pd
 
-#  CREATE TABLE pieces (id integer primary key autoincrement, track_id integer not null, idx integer not null, piece varchar(10) not null,
-#  CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
-#  create table connections (id integer primary key autoincrement, track_id integer not null,
-#  p1 integer not null,
-#  e1 integer not null,
-#  p2 integer not null,
-#  e2 integer not null,
-#  CONSTRAINT fk_tracks2 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
+# --- SQLite
+# CREATE TABLE pieces (id INTEGER PRIMARY KEY AUTOINCREMENT, track_id INTEGER NOT NULL, idx INTEGER NOT NULL, piece VARCHAR(10) NOT NULL,
+# CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
+# CREATE TABLE connections (id INTEGER PRIMARY KEY AUTOINCREMENT, track_id INTEGER NOT NULL,
+# p1 INTEGER NOT NULL,
+# e1 INTEGER NOT NULL,
+# p2 INTEGER NOT NULL,
+# e2 INTEGER NOT NULL,
+# CONSTRAINT fk_tracks2 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
 
-# delete from pieces;    
-# delete from connections;
-# insert into pieces (track_id, idx, piece) values (33, 0, 'straight');
-# insert into pieces (track_id, idx, piece) values (33, 1, 'straight'); 
-# insert into pieces (track_id, idx, piece) values (33, 2, 'straight'); 
-# insert into connections (track_id,p1,e1,p2,e2) values (33,-1,-1,0,0);  
-# insert into connections (track_id,p1,e1,p2,e2) values (33, 0, 1,1,0);  
-# insert into connections (track_id,p1,e1,p2,e2) values (33, 1, 1,2,0); 
-
-#create table pieces (id int NOT NULL AUTO_INCREMENT, track_id int not null, idx int not null, piece varchar(10) not null, primary key (id),
-#CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
-
-#create table connections (id int NOT NULL AUTO_INCREMENT, track_id int not null, p1 int not null, e1 int not null, p2 int not null, e2 int not null, primary key(id),
-#CONSTRAINT fk_tracks2 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
+# --- MySQL
+# CREATE TABLE pieces (id INT NOT NULL AUTO_INCREMENT, track_id INT NOT NULL, idx INT NOT NULL, piece VARCHAR(10) NOT NULL, PRIMARY KEY (id),
+# CONSTRAINT fk_tracks FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
+# CREATE TABLE connections (id INT NOT NULL AUTO_INCREMENT, track_id INT NOT NULL, p1 INT NOT NULL, e1 INT NOT NULL, p2 INT NOT NULL, e2 INT NOT NULL, PRIMARY KEY(id),
+# CONSTRAINT fk_tracks2 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
 
 def pieces_update(track_id, pieces):
     cmd = f"delete from pieces where track_id = '{track_id}'"
