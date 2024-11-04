@@ -27,6 +27,10 @@
         function drawElement(el) {
             const canvas = document.getElementById('drawingCanvas');
             const ctx = canvas.getContext('2d');
+
+            {% if is_closed %}
+            ctx.strokeStyle = 'green';
+            {% endif %}
             
             ctx.beginPath();
             for (let i = 0; i < el.length; i++) {

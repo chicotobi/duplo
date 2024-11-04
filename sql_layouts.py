@@ -83,11 +83,31 @@ def layouts_build(pieces, connections):
 def layouts_free_endings(endings, connections):
     lst = []
     for piece_idx, ends in endings.items():
-        for (ending_idx, end) in enumerate(ends):
+        for (ending_idx, _) in enumerate(ends):
             # Find if this ending is already in connections
             if any((connections.p1 == piece_idx) & (connections.e1 == ending_idx)):
                 continue
             if any((connections.p1 != -1) & (connections.p2 == piece_idx) & (connections.e2 == ending_idx)):
                 continue
             lst.append((piece_idx,ending_idx))
+    # Now the interesting part - what about connections that should be there, because two endings overlap!
+    to_be_removed = []
+    n = len(lst)
+    for i in range(n):
+        for j in range(i+1,n):
+            p1, e1 = lst[i]
+            p2, e2 = lst[j]
+            pt1_1, pt1_2 = endings[p1][e1]
+            pt2_1, pt2_2 = endings[p2][e2]
+            if fitting(pt1_1, pt1_2, pt2_1, pt2_2):
+                to_be_removed += [(p1,e1),(p2,e2)]
+                print("omg omg omg overlap")
+
+    # Now remove these additional connections
+    lst = [i for i in lst if i not in to_be_removed]
+
     return lst
+
+def fitting(pt1_1, pt1_2, pt2_1, pt2_2):
+    res = abs(pt1_1[0] - pt2_2[0]) + abs(pt1_1[1] - pt2_2[1]) + abs(pt1_2[0] - pt2_1[0]) + abs(pt1_2[1] - pt2_1[1])
+    return res < 1e-8

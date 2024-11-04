@@ -165,7 +165,7 @@ def edit():
                     e2 = 1
                 else:
                     e2 = 0
-                cursor_idx = 0
+
                 if val in ['left','right']:
                     val = 'curve'
                 pieces.append(val)
@@ -177,7 +177,6 @@ def edit():
                 # Remove all registered connections
                 connections = connections[connections.p1 != len(pieces)]
                 connections = connections[connections.p2 != len(pieces)]
-                cursor_idx = 0
         elif val == 'next_ending':
             if len(free_endings) > 0:
                 cursor_idx = (cursor_idx + 1) % len(free_endings)
@@ -205,24 +204,38 @@ def edit():
     lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
     lib = {**lib1, **session['user_lib']}
 
+    # Update
+    path, endings = layouts_build(pieces, connections) 
+    free_endings = layouts_free_endings(endings,connections)
+
+    is_closed = len(free_endings) == 0
+
+    # If a piece was added or deleted this round, let's set the cursor to a nice place
+    if request.method == 'POST':
+        print("val",val)
+        if val != 'next_ending':
+            if not is_closed:
+                # Get the maximum piece index
+                tmp = max(i for (i,_) in free_endings)
+                # Now look for these endings
+                cursor_idx = [i for (i,(j,_)) in enumerate(free_endings) if j == tmp][0]
+            else:
+                cursor_idx = None
+
     # Set session variables from scope variables
     session['pieces'] = pieces
     session['connections'] = connections.to_dict(orient = 'records')
     session['cursor_idx'] = cursor_idx
-        
-    path, endings = layouts_build(pieces, connections) 
 
-    free_endings = layouts_free_endings(endings,connections)
+    # Painting stuff
+    if not is_closed:         
+        current_ending = free_endings[cursor_idx]
+        cursor = endings[current_ending[0]][current_ending[1]]
 
-    current_ending = free_endings[cursor_idx]
-    cursor = endings[current_ending[0]][current_ending[1]]
-    
-    if len(free_endings) > 0:            
         path_cursor = get_path_cursor(cursor)
         path += [path_cursor]
 
-
-    return render_template('track_edit.html', title = track_title, path = path, lib = lib)
+    return render_template('track_edit.html', title = track_title, path = path, lib = lib, is_closed = is_closed)
 
 @app.route("/library_set", methods=["GET", "POST"])
 @login_required
