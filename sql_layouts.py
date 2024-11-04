@@ -110,4 +110,4 @@ def layouts_free_endings(endings, connections):
 
 def fitting(pt1_1, pt1_2, pt2_1, pt2_2):
     res = abs(pt1_1[0] - pt2_2[0]) + abs(pt1_1[1] - pt2_2[1]) + abs(pt1_2[0] - pt2_1[0]) + abs(pt1_2[1] - pt2_1[1])
-    return res < 1e-8
+    return res < 5

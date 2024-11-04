@@ -120,17 +120,12 @@ def edit():
         # Initialize from database
         pieces, connections = layouts_parse(track_id)
         pieces = pieces['piece'].to_list()
-        pathes, endings = layouts_build(pieces, connections)
         session['pieces'] = pieces
         session['connections'] = connections.to_dict(orient = 'records')
         session['cursor_idx'] = 0
         
         user_lib = users_library_read(session['user_id'])[0]
-        if 'n_straights' not in user_lib.keys():
-            user_lib['n_straights'] = 99
-            user_lib['n_curves'   ] = 99
-            user_lib['n_switches' ] = 99
-            user_lib['n_crossings'] = 99
+        
         session['user_lib'] = user_lib
     
     # Set scope variables from session variables
@@ -143,7 +138,6 @@ def edit():
     _, endings = layouts_build(pieces, connections) 
 
     free_endings = layouts_free_endings(endings,connections)
-    print('free_endings',free_endings)
 
     lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
     lib = {**lib1, **session['user_lib']}
@@ -242,13 +236,7 @@ def edit():
 def library_set():    
     user_id = session['user_id']
 
-
     user_lib = users_library_read(session['user_id'])[0]
-    if 'n_straights' not in user_lib.keys():
-        user_lib['n_straights'] = 99
-        user_lib['n_curves'   ] = 99
-        user_lib['n_switches' ] = 99
-        user_lib['n_crossings'] = 99
 
     if request.method == "GET":
         # Get available tracks for this user

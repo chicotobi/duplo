@@ -9,7 +9,7 @@ from helpers import sql
 # n_straights INT, n_curves INT, n_switches INT, n_crossings INT);
 
 def users_create(name, hash):
-    cmd = f"insert into users (name, hash) values ('{name}','{hash}')"
+    cmd = f"insert into users (name, hash, n_straights, n_curves, n_switches, n_crossings) values ('{name}','{hash}',99,99,99,99)"
     return sql(cmd)
 
 def users_read(name):
