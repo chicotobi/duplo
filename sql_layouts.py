@@ -1,5 +1,6 @@
 from helpers import sql
-from geometry import w0, add_piece
+from track_types import zero_position
+from geometry import add_piece
 
 import pandas as pd
 
@@ -63,10 +64,7 @@ def layouts_parse(track_id):
 
 def layouts_build(pieces, connections):
     pathes = []
-    x0 = 250.
-    y0 = 250.
-    zero_position = [(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]
-    all_endings = {-1: [zero_position]}
+    all_endings = {-1: [zero_position()]}
     for idx, piece in enumerate(pieces):
         tmp = connections[connections.p2 == idx]        
         
