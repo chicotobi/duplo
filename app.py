@@ -125,7 +125,7 @@ def edit():
         session['cursor_idx'] = 0
         
         user_lib = users_library_read(session['user_id'])[0]
-        
+
         session['user_lib'] = user_lib
     
     # Set scope variables from session variables
@@ -146,25 +146,26 @@ def edit():
     if request.method == 'POST':
         val = list(request.form.keys())[0]
         if val in ['left','straight','right','switch','crossing']:
-            if (
-                (val in ['straight'    ] and lib['straight'] < lib['n_straights']) or
-                (val in ['left','right'] and lib['curve'   ] < lib['n_curves'   ]) or
-                (val in ['switch'      ] and lib['switch'  ] < lib['n_switches' ]) or
-                (val in ['crossing'    ] and lib['crossing'] < lib['n_crossings'])
-                ):
-                p1 = free_endings[cursor_idx][0]
-                e1 = free_endings[cursor_idx][1]
-                p2 = len(pieces)
-                if val == 'right':
-                    e2 = 1
-                else:
-                    e2 = 0
+            if len(free_endings) > 0:
+                if (
+                    (val in ['straight'    ] and lib['straight'] < lib['n_straights']) or
+                    (val in ['left','right'] and lib['curve'   ] < lib['n_curves'   ]) or
+                    (val in ['switch'      ] and lib['switch'  ] < lib['n_switches' ]) or
+                    (val in ['crossing'    ] and lib['crossing'] < lib['n_crossings'])
+                    ):
+                    p1 = free_endings[cursor_idx][0]
+                    e1 = free_endings[cursor_idx][1]
+                    p2 = len(pieces)
+                    if val == 'right':
+                        e2 = 1
+                    else:
+                        e2 = 0
 
-                if val in ['left','right']:
-                    val = 'curve'
-                pieces.append(val)
-                new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
-                connections = pd.concat([connections,new_connections_row])
+                    if val in ['left','right']:
+                        val = 'curve'
+                    pieces.append(val)
+                    new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
+                    connections = pd.concat([connections,new_connections_row])
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
