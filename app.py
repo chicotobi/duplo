@@ -140,7 +140,7 @@ def edit():
         connections = pd.DataFrame(columns=['p1','e1','p2','e2'])
     cursor_idx = session['cursor_idx']
     
-    pathes, endings = layouts_build(pieces, connections) 
+    _, endings = layouts_build(pieces, connections) 
 
     free_endings = layouts_free_endings(endings,connections)
     print('free_endings',free_endings)
@@ -158,17 +158,14 @@ def edit():
                 (val in ['switch'      ] and lib['switch'  ] < lib['n_switches' ]) or
                 (val in ['crossing'    ] and lib['crossing'] < lib['n_crossings'])
                 ):
-                p1 = len(pieces) - 1
-                e1 = cursor_idx
+                p1 = free_endings[cursor_idx][0]
+                e1 = free_endings[cursor_idx][1]
                 p2 = len(pieces)
                 if val == 'right':
                     e2 = 1
                 else:
                     e2 = 0
-                if val in ['straight', 'left', 'switch']:
-                    cursor_idx = 1
-                else:
-                    cursor_idx = 0
+                cursor_idx = 0
                 if val in ['left','right']:
                     val = 'curve'
                 pieces.append(val)
@@ -180,15 +177,10 @@ def edit():
                 # Remove all registered connections
                 connections = connections[connections.p1 != len(pieces)]
                 connections = connections[connections.p2 != len(pieces)]
-                if len(pieces) > 0 and pieces[-1] in ['straight', 'left', 'switch']:
-                    cursor_idx = 1
-                else:
-                    cursor_idx = 0
+                cursor_idx = 0
         elif val == 'next_ending':
-            if len(pieces) > 0:
-                npieces = len(pieces)
-                n = len(endings[npieces-1])
-                cursor_idx = (cursor_idx + 1) % n
+            if len(free_endings) > 0:
+                cursor_idx = (cursor_idx + 1) % len(free_endings)
         elif val == 'rotate':
             if len(pieces) > 0:
                 # Get the index of the current element
@@ -218,16 +210,17 @@ def edit():
     session['connections'] = connections.to_dict(orient = 'records')
     session['cursor_idx'] = cursor_idx
         
-    pathes, endings = layouts_build(pieces, connections) 
+    path, endings = layouts_build(pieces, connections) 
 
     free_endings = layouts_free_endings(endings,connections)
-    print('free_endings',free_endings)
 
-    npieces = len(pieces)
-    cursor = endings[npieces-1][cursor_idx]
+    current_ending = free_endings[cursor_idx]
+    cursor = endings[current_ending[0]][current_ending[1]]
+    
+    if len(free_endings) > 0:            
+        path_cursor = get_path_cursor(cursor)
+        path += [path_cursor]
 
-    path_cursor = get_path_cursor(cursor)
-    path = pathes + [path_cursor]
 
     return render_template('track_edit.html', title = track_title, path = path, lib = lib)
 

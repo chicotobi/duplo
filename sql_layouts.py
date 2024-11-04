@@ -63,23 +63,18 @@ def layouts_parse(track_id):
 
 def layouts_build(pieces, connections):
     pathes = []
-    x0 = 250
-    y0 = 250
+    x0 = 250.
+    y0 = 250.
     zero_position = [(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]
     all_endings = {-1: [zero_position]}
     for idx, piece in enumerate(pieces):
         tmp = connections[connections.p2 == idx]        
         
+        p1 = tmp.p1.values[0]
         e1 = tmp.e1.values[0]        
         e2 = tmp.e2.values[0]        
 
-        if idx == 0:
-            cursor_position = all_endings[-1][0]
-        else:
-            cursor_position = all_endings[idx-1][e1]
-
-        if piece in ['left', 'right']:
-            piece = 'curve'
+        cursor_position = all_endings[p1][e1]
 
         pts, endings = add_piece(piece, cursor_position, e2)
         pathes += [pts]
@@ -89,17 +84,12 @@ def layouts_build(pieces, connections):
 
 def layouts_free_endings(endings, connections):
     lst = []
-    print('---')
-    print("connections",connections)
     for piece_idx, ends in endings.items():
         for (ending_idx, end) in enumerate(ends):
-            print("piece_idx",piece_idx)
-            print("ending_idx",ending_idx)
             # Find if this ending is already in connections
             if any((connections.p1 == piece_idx) & (connections.e1 == ending_idx)):
                 continue
             if any((connections.p1 != -1) & (connections.p2 == piece_idx) & (connections.e2 == ending_idx)):
                 continue
             lst.append((piece_idx,ending_idx))
-    print('---')
     return lst
