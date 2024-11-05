@@ -27,16 +27,19 @@ def pieces_update(track_id, pieces):
         cmd = f"insert into pieces (track_id, idx, piece) values ({track_id},{idx},'{piece}')"
         sql(cmd)
 
-def connections_update(track_id, p1a, e1a, p2a, e2a):
+def connections_update(track_id, connections):
+    p1a = connections.p1.values
+    e1a = connections.e1.values
+    p2a = connections.p2.values
+    e2a = connections.e2.values
     cmd = f"delete from connections where track_id = '{track_id}'"
     sql(cmd)
     for (p1, e1, p2, e2) in zip(p1a,e1a,p2a,e2a):
         cmd = f"insert into connections (track_id, p1, e1, p2, e2) values ({track_id},{p1},{e1},{p2},{e2})"
         sql(cmd)
 
-
 def pieces_read(track_id):
-    cmd = f"select idx, piece from pieces where track_id = '{track_id}' order by idx"
+    cmd = f"select piece from pieces where track_id = '{track_id}' order by idx"
     return sql(cmd)
 
 def connections_read(track_id):
@@ -54,9 +57,8 @@ def connections_read_all():
 # TODO: In the long run, sql should always return a data.frame with the corresponding columns, even if empty
 # But somehow this doesn't work
 def layouts_parse(track_id):
-    pieces = pd.DataFrame(list(pieces_read(track_id = track_id)))
-    if pieces.shape[0] == 0:
-        pieces = pd.DataFrame(columns=['idx','piece'])
+    pieces = [i['piece'] for i in pieces_read(track_id = track_id)]
+    print('pieces',pieces)
     connections = pd.DataFrame(list(connections_read(track_id = track_id)))
     if connections.shape[0] == 0:
         connections = pd.DataFrame(columns=['p1','e1','p2','e2'])

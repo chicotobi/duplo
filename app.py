@@ -119,7 +119,6 @@ def edit():
     if request.method == 'GET':
         # Initialize from database
         pieces, connections = layouts_parse(track_id)
-        pieces = pieces['piece'].to_list()
         session['pieces'] = pieces
         session['connections'] = connections.to_dict(orient = 'records')
         session['cursor_idx'] = 0
@@ -193,7 +192,7 @@ def edit():
                 connections.loc[connections.p2 == current_piece,'e2'] = current_ending
         elif val == 'save':
             pieces_update(track_id = track_id, pieces = pieces)
-            connections_update(track_id = track_id, p1a = connections.p1.values, e1a = connections.e1.values, p2a = connections.p2.values, e2a = connections.e2.values)
+            connections_update(track_id = track_id, connections = connections)
             return redirect("/")
 
     lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
