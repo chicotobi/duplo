@@ -24,18 +24,16 @@
     <br>
     <canvas id="drawingCanvas" width="500" height="500"></canvas>
     <script>
-        function drawElement(el) {
+        function drawElement(path, color) {
             const canvas = document.getElementById('drawingCanvas');
             const ctx = canvas.getContext('2d');
 
-            {% if is_closed %}
-            ctx.strokeStyle = 'green';
-            {% endif %}
+            ctx.strokeStyle = color;
             
             ctx.beginPath();
-            for (let i = 0; i < el.length; i++) {
+            for (let i = 0; i < path.length; i++) {
               // HTML canvas is inverted
-              ctx.lineTo(el[i].x, 500 - el[i].y);
+              ctx.lineTo(path[i].x, 500 - path[i].y);
             }
             ctx.closePath();             
 
@@ -43,8 +41,8 @@
         }
 
         // Draw the Circle       
-        {% for el in path %}
-        drawElement({{el | tojson}});
+        {% for el in pathes %}
+        drawElement({{el.path | tojson}}, '{{el.color}}');
         {% endfor %}
     </script>
 {% endblock %}

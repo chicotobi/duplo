@@ -4,6 +4,9 @@ from track_types import straight, curve, switch, crossing
 
 points = {}
 endings = {}
+
+PIECE_TYPES = ['straight','curve','switch','crossing']
+
 points['straight'], endings['straight'] = straight()
 points['curve'   ], endings['curve'   ] = curve()
 points['switch'  ], endings['switch'  ] = switch()

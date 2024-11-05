@@ -2,7 +2,7 @@ from flask import request, render_template, session, redirect
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from geometry import get_path_cursor
+from geometry import get_path_cursor, PIECE_TYPES
 from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete, users_library_set, users_library_read
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
@@ -144,27 +144,21 @@ def edit():
     # Logic works with the scoped variables
     if request.method == 'POST':
         val = list(request.form.keys())[0]
-        if val in ['left','straight','right','switch','crossing']:
+        if val in ['left','right']:
+            val = 'curve'
+        if val in PIECE_TYPES:
             if len(free_endings) > 0:
-                if (
-                    (val in ['straight'    ] and lib['straight'] < lib['n_straights']) or
-                    (val in ['left','right'] and lib['curve'   ] < lib['n_curves'   ]) or
-                    (val in ['switch'      ] and lib['switch'  ] < lib['n_switches' ]) or
-                    (val in ['crossing'    ] and lib['crossing'] < lib['n_crossings'])
-                    ):
-                    p1 = free_endings[cursor_idx][0]
-                    e1 = free_endings[cursor_idx][1]
-                    p2 = len(pieces)
-                    if val == 'right':
-                        e2 = 1
-                    else:
-                        e2 = 0
+                p1 = free_endings[cursor_idx][0]
+                e1 = free_endings[cursor_idx][1]
+                p2 = len(pieces)
+                if list(request.form.keys())[0] == 'right':
+                    e2 = 1
+                else:
+                    e2 = 0
 
-                    if val in ['left','right']:
-                        val = 'curve'
-                    pieces.append(val)
-                    new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
-                    connections = pd.concat([connections,new_connections_row])
+                pieces.append(val)
+                new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
+                connections = pd.concat([connections,new_connections_row])
         elif val == 'delete':
             if len(pieces) > 0:
                 pieces.pop()
@@ -195,11 +189,8 @@ def edit():
             connections_update(track_id = track_id, connections = connections)
             return redirect("/")
 
-    lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
-    lib = {**lib1, **session['user_lib']}
-
     # Update
-    path, endings = layouts_build(pieces, connections) 
+    pathes, endings = layouts_build(pieces, connections) 
     free_endings = layouts_free_endings(endings,connections)
 
     is_closed = len(free_endings) == 0
@@ -222,14 +213,15 @@ def edit():
     session['cursor_idx'] = cursor_idx
 
     # Painting stuff
+    pathes = [{'path':p, 'color':'blue'} for p in pathes]
     if not is_closed:         
         current_ending = free_endings[cursor_idx]
         cursor = endings[current_ending[0]][current_ending[1]]
 
         path_cursor = get_path_cursor(cursor)
-        path += [path_cursor]
+        pathes += [{'path':path_cursor,'color':'green'}]
 
-    return render_template('track_edit.html', title = track_title, path = path, lib = lib, is_closed = is_closed)
+    return render_template('track_edit.html', title = track_title, pathes = pathes, lib = lib, is_closed = is_closed)
 
 @app.route("/library_set", methods=["GET", "POST"])
 @login_required
