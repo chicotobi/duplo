@@ -4,9 +4,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from geometry import get_path_cursor, PIECE_TYPES
 from helpers import login_required, app, error, DEBUG
-from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete, users_library_set, users_library_read
+from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete, users_library_set, users_library_read, users_read_by_id
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
-from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings
+from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings, pieces_read
 
 import pandas as pd
 
@@ -260,6 +260,20 @@ def library_set():
     users_library_set(user_id, straight, curve, switch, crossing)
 
     return redirect("/")
+
+@app.route("/user_info")
+def user_info():
+    name = users_read_by_id(id = session['user_id'])[0]['name']
+    tracks = tracks_read(user_id = session['user_id'])
+    track_info = []
+    for t in tracks:
+        pieces = [ i['piece'] for i in pieces_read(track_id = t['id'])]
+        print(pieces)
+        dct = {p:sum(1 for i in pieces if i == p) for p in PIECE_TYPES}
+        dct['title'] = t['title']
+        track_info.append(dct)
+    print(track_info)    
+    return render_template("user_info.html", name = name, track_info = track_info)
 
 @app.route("/user_register", methods=["GET", "POST"])
 def user_register():

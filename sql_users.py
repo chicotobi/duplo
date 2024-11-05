@@ -16,6 +16,10 @@ def users_read(name):
     cmd = f"select id from users where name = '{name}'"
     return sql(cmd)
 
+def users_read_by_id(id):
+    cmd = f"select id, name from users where id = '{id}'"
+    return sql(cmd)
+
 def users_read_hash(name):
     cmd = f"select hash from users where name = '{name}'"
     return sql(cmd)

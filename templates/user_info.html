@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Account info
+{% endblock %}
+
+{% block main %}
+
+<p style = "font-size:20px">
+Name: {{ name }}
+</p>
+
+<table>
+    <tr>
+        <th>Title</th>
+        <th>No. straight</th>
+        <th>No. curve</th>
+        <th>No. switch</th>
+        <th>No. crossing</th>
+    </tr>
+{% for row in track_info %}
+<tr>
+  <td>{{ row['title'] }}</td>
+  <td>{{ row['straight'] }}</td>
+  <td>{{ row['curve'] }}</td>
+  <td>{{ row['switch'] }}</td>
+  <td>{{ row['crossing'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}
