@@ -15,20 +15,20 @@
         <th>id</th>
         <th>name</th>
         <th>hash</th>
-        <th>n_straights</th>
-        <th>n_curves</th>
-        <th>n_switches</th>
-        <th>n_crossings </th>
+        <th>straight</th>
+        <th>curve</th>
+        <th>switch</th>
+        <th>crossing </th>
     </tr>
 {% for row in users_debug %}
 <tr>
   <td>{{ row['id'] }}</td>
   <td>{{ row['name'] }}</td>
   <td>{{ row['hash'] }}</td>
-  <td>{{ row['n_straights'] }}</td>
-  <td>{{ row['n_curves'] }}</td>
-  <td>{{ row['n_switches'] }}</td>
-  <td>{{ row['n_crossings'] }}</td>
+  <td>{{ row['straight'] }}</td>
+  <td>{{ row['curve'] }}</td>
+  <td>{{ row['switch'] }}</td>
+  <td>{{ row['crossing'] }}</td>
 </tr>
 {% endfor %}
 </table>

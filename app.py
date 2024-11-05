@@ -133,13 +133,11 @@ def edit():
     if connections.shape[0] == 0:
         connections = pd.DataFrame(columns=['p1','e1','p2','e2'])
     cursor_idx = session['cursor_idx']
+    user_lib = session['user_lib']
     
     _, endings = layouts_build(pieces, connections) 
 
     free_endings = layouts_free_endings(endings,connections)
-
-    lib1 = {v:sum(1 for i in pieces if i == v) for v in ['straight','curve','switch','crossing']}
-    lib = {**lib1, **session['user_lib']}
 
     # Logic works with the scoped variables
     if request.method == 'POST':
@@ -155,7 +153,6 @@ def edit():
                     e2 = 1
                 else:
                     e2 = 0
-
                 pieces.append(val)
                 new_connections_row = pd.DataFrame([{'p1':p1,'e1':e1,'p2':p2,'e2':e2}])
                 connections = pd.concat([connections,new_connections_row])
@@ -213,15 +210,26 @@ def edit():
     session['cursor_idx'] = cursor_idx
 
     # Painting stuff
-    pathes = [{'path':p, 'color':'blue'} for p in pathes]
+    pathes2 = []
+    counter = {p:0 for p in PIECE_TYPES}
+    all_possible = True
+    for (piece,path) in zip(pieces,pathes):
+        counter[piece] += 1
+        if counter[piece] > user_lib[piece]:
+            col = 'red'
+            all_possible = False
+        else:
+            col = 'black'
+        pathes2.append({'path':path, 'color':col})
     if not is_closed:         
         current_ending = free_endings[cursor_idx]
         cursor = endings[current_ending[0]][current_ending[1]]
-
         path_cursor = get_path_cursor(cursor)
-        pathes += [{'path':path_cursor,'color':'green'}]
-
-    return render_template('track_edit.html', title = track_title, pathes = pathes, lib = lib, is_closed = is_closed)
+        pathes2.append({'path':path_cursor,'color':'blue'})
+    elif all_possible:
+        pathes2 = [{'path':p['path'], 'color':'green'} for p in pathes2]
+    
+    return render_template('track_edit.html', title = track_title, pathes = pathes2, counter = counter, user_lib = user_lib, is_closed = is_closed)
 
 @app.route("/library_set", methods=["GET", "POST"])
 @login_required
@@ -232,24 +240,24 @@ def library_set():
 
     if request.method == "GET":
         # Get available tracks for this user
-        return render_template("library_set.html", lib = user_lib)
+        return render_template("library_set.html", user_lib = user_lib)
     
     # Input check
-    if not request.form.get("straights"):
+    if not request.form.get("straight"):
         return error("Straight not set")
-    if not request.form.get("curves"):
-        return error("Curves not set")
-    if not request.form.get("switches"):
-        return error("Switches not set")
-    if not request.form.get("crossings"):
-        return error("Crossings not set")
+    if not request.form.get("curve"):
+        return error("Curve not set")
+    if not request.form.get("switch"):
+        return error("Switch not set")
+    if not request.form.get("crossing"):
+        return error("Crossing not set")
     
-    straights = request.form.get("straights")
-    curves    = request.form.get("curves")
-    switches  = request.form.get("switches")
-    crossings = request.form.get("crossings")
+    straight = request.form.get("straight")
+    curve    = request.form.get("curve")
+    switch   = request.form.get("switch")
+    crossing = request.form.get("crossing")
     
-    users_library_set(user_id, straights, curves, switches, crossings)
+    users_library_set(user_id, straight, curve, switch, crossing)
 
     return redirect("/")
 

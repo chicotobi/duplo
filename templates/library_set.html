@@ -10,19 +10,19 @@ Set your library, i.e. the number of pieces that are available to you
     <div class="mb-3">
         <div class="form-group">
         <label>Number of straights:</label>
-        <input type="number" name="straights" value = {{ lib.n_straights }} required><br><br>
+        <input type="number" name="straight" value = {{ user_lib.straight }} required><br><br>
     </div>
     <div class="form-group">
         <label>Number of curves:</label>
-        <input type="number" name="curves" value = {{ lib.n_curves }} required><br><br>
+        <input type="number" name="curve" value = {{ user_lib.curve }} required><br><br>
     </div>
     <div class="form-group">
         <label>Number of switches:</label>
-        <input type="number" name="switches" value = {{ lib.n_switches }} required><br><br>
+        <input type="number" name="switch" value = {{ user_lib.switch }} required><br><br>
     </div>
     <div class="form-group">
         <label>Number of crossings:</label>
-        <input type="number" name="crossings" value = {{ lib.n_crossings }} required><br><br>
+        <input type="number" name="crossing" value = {{ user_lib.crossing }} required><br><br>
     </div>
     <button type="submit" class="btn btn-primary">Submit</button>
 </form>
