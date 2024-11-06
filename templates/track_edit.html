@@ -95,8 +95,13 @@ const handleTouchMove = (evt) => {
         const newScale = (newDistance / startDistance) * startScale;
         if (newScale >= 0.1 && newScale <= 10) {
             const scaleRatio = newScale / scale;
-            posX -= (midpointX - posX) * (scaleRatio - 1);
-            posY -= (midpointY - posY) * (scaleRatio - 1);
+            
+            // Calculate new positions based on the midpoint
+            const canvasMidX = midpointX - canvas.offsetLeft;
+            const canvasMidY = midpointY - canvas.offsetTop;
+            posX = canvasMidX - (canvasMidX - posX) * scaleRatio;
+            posY = canvasMidY - (canvasMidY - posY) * scaleRatio;
+            
             scale = newScale;
             draw();
         }
@@ -140,6 +145,7 @@ const handleMouseWheel = (evt) => {
         const mouseX = evt.pageX - canvas.offsetLeft;
         const mouseY = evt.pageY - canvas.offsetTop;
 
+        // Adjust posX and posY to keep the canvas centered on the mouse pointer
         posX -= (mouseX - posX) * (delta - 1);
         posY -= (mouseY - posY) * (delta - 1);
 
