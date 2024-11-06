@@ -194,7 +194,6 @@ def edit():
 
     # If a piece was added or deleted this round, let's set the cursor to a nice place
     if request.method == 'POST':
-        print("val",val)
         if val != 'next_ending':
             if not is_closed:
                 # Get the maximum piece index
@@ -268,11 +267,9 @@ def user_info():
     track_info = []
     for t in tracks:
         pieces = [ i['piece'] for i in pieces_read(track_id = t['id'])]
-        print(pieces)
         dct = {p:sum(1 for i in pieces if i == p) for p in PIECE_TYPES}
         dct['title'] = t['title']
         track_info.append(dct)
-    print(track_info)    
     return render_template("user_info.html", name = name, track_info = track_info)
 
 @app.route("/user_register", methods=["GET", "POST"])

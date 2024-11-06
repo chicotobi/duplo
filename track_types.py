@@ -1,7 +1,6 @@
 from math import pi, sin, cos
 
 # https://www.duplo-schienen.de/lego-duplo-schienen-geometrische-regeln.html
-# length of seven straight = length of rrllllrr (eight curves)
 
 w0 = 1 * 10
 l0 = 4 * 10

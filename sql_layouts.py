@@ -58,7 +58,6 @@ def connections_read_all():
 # But somehow this doesn't work
 def layouts_parse(track_id):
     pieces = [i['piece'] for i in pieces_read(track_id = track_id)]
-    print('pieces',pieces)
     connections = pd.DataFrame(list(connections_read(track_id = track_id)))
     if connections.shape[0] == 0:
         connections = pd.DataFrame(columns=['p1','e1','p2','e2'])
@@ -103,7 +102,6 @@ def layouts_free_endings(endings, connections):
             pt2_1, pt2_2 = endings[p2][e2]
             if fitting(pt1_1, pt1_2, pt2_1, pt2_2):
                 to_be_removed += [(p1,e1),(p2,e2)]
-                print("omg omg omg overlap")
 
     # Now remove these additional connections
     lst = [i for i in lst if i not in to_be_removed]
