@@ -24,144 +24,152 @@
     <br>
     <canvas id="drawingCanvas" width="500" height="500"></canvas>
     <script>
+const canvas = document.getElementById('drawingCanvas');
+const ctx = canvas.getContext('2d');
 
-      const canvas = document.getElementById('drawingCanvas');
-      const ctx = canvas.getContext('2d');
-            
-      let scale = 1;
-      let posX = 0;
-      let posY = 0;
-      let lastTouchEnd = 0;
-      let isDragging = false;
-      let startX, startY;
+let scale = 1;
+let posX = 0;
+let posY = 0;
+let startDistance = 0;
+let startScale = 1;
+let startX = 0;
+let startY = 0;
+let midpointX = 0;
+let midpointY = 0;
+let isDragging = false;
+let lastTouchEnd = 0;
 
-      
-      function drawElement(path, color) {        
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        for (let i = 0; i < path.length; i++) {
-          // HTML canvas is inverted
-          ctx.lineTo(path[i].x, 500 - path[i].y);
-        }
-        ctx.closePath();
-        ctx.stroke();
-      }
-      
-      const draw = () => {
-          ctx.save();
-          ctx.setTransform(scale, 0, 0, scale, posX, posY);
-          ctx.clearRect(-posX / scale, -posY / scale, canvas.width / scale, canvas.height / scale);
-                
-          {% for el in pathes %}
-          drawElement({{el.path | tojson}}, '{{el.color}}');
-          {% endfor %}
-          
-          ctx.restore();
-      };
-      
+const drawElement = (path, color) => {        
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  for (let i = 0; i < path.length; i++) {
+    // HTML canvas is inverted
+    ctx.lineTo(path[i].x, 500 - path[i].y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+};
 
-      const handleTouchStart = (evt) => {
-        evt.preventDefault();
-        if (evt.touches.length === 1) {
-            let touch = evt.touches[0];
-            canvas.dataset.startX = touch.pageX - posX;
-            canvas.dataset.startY = touch.pageY - posY;
-        }
-        if (evt.touches.length === 2) {
-            const dx = evt.touches[0].pageX - evt.touches[1].pageX;
-            const dy = evt.touches[0].pageY - evt.touches[1].pageY;
-            canvas.dataset.startDistance = Math.sqrt(dx * dx + dy * dy);
-            canvas.dataset.startScale = scale;
-            
-            // Calculate the midpoint for zoom
-            canvas.dataset.midpointX = (evt.tTouches[0].pageX + evt.touches[1].pageX) / 2;
-            canvas.dataset.midpointY = (evt.tTouches[0].pageY + evt.touches[1].pageY) / 2;
-        }
-    };
-      
-      const handleTouchMove = (evt) => {
-        evt.preventDefault();
-        if (evt.touches.length === 1) {
-            let touch = evt.touches[0];
-            posX = touch.pageX - canvas.dataset.startX;
-            posY = touch.pageY - canvas.dataset.startY;
-        }
-        if (evt.touches.length === 2) {
-            const dx = evt.touches[0].pageX - evt.touches[1].pageX;
-            const dy = evt.touches[0].pageY - evt.touches[1].pageY;
-            const newDistance = Math.sqrt(dx * dx + dy * dy);
-            const newScale = (newDistance / canvas.dataset.startDistance) * canvas.dataset.startScale;
-            if(newScale >= 0.1 && newScale <= 10) {
-                // Adjust posX and posY to keep the zoom centered at the midpoint
-                const scaleRatio = newScale / scale;
-                const midpointX = canvas.dataset.midpointX - canvas.offsetLeft;
-                const midpointY = canvas.dataset.midpointY - canvas.offsetTop;
-                posX -= (midpointX - posX) * (scaleRatio - 1);
-                posY -= (midpointY - posY) * (scaleRatio - 1);
-                scale = newScale;
-                draw();
-            }
-        }
-          draw();
-      };
-      
-      const handleTouchEnd = (evt) => {
-        evt.preventDefault();
-        const now = new Date().getTime();
-        if (now - lastTouchEnd <= 300) {
-            scale = 1;
-            posX = 0;
-            posY = 0;
-        }
-        lastTouchEnd = now;
-        draw();
-    };
-            
-      const handleMouseDown = (evt) => {
-        evt.preventDefault();
+const draw = () => {
+    ctx.save();
+    ctx.setTransform(scale, 0, 0, scale, posX, posY);
+    ctx.clearRect(-posX / scale, -posY / scale, canvas.width / scale, canvas.height / scale);
+
+    {% for el in pathes %}
+    drawElement({{el.path | tojson}}, '{{el.color}}');
+    {% endfor %}
+
+    ctx.restore();
+};
+
+const handleTouchStart = (evt) => {
+    evt.preventDefault();
+    if (evt.touches.length === 1) {
+        let touch = evt.touches[0];
+        startX = touch.pageX - posX;
+        startY = touch.pageY - posY;
         isDragging = true;
-        startX = evt.pageX - posX;
-        startY = evt.pageY - posY;
-      };
+    }
+    if (evt.touches.length === 2) {
+        const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+        const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+        startDistance = Math.sqrt(dx * dx + dy * dy);
+        startScale = scale;
+        midpointX = (evt.touches[0].pageX + evt.touches[1].pageX) / 2;
+        midpointY = (evt.touches[0].pageY + evt.touches[1].pageY) / 2;
+    }
+};
 
-      const handleMouseMove = (evt) => {
-        if (!isDragging) return;
-        evt.preventDefault();
-        posX = evt.pageX - startX;
-        posY = evt.pageY - startY;
+const handleTouchMove = (evt) => {
+    evt.preventDefault();
+    if (evt.touches.length === 1 && isDragging) {
+        let touch = evt.touches[0];
+        posX = touch.pageX - startX;
+        posY = touch.pageY - startY;
         draw();
-      };
-
-      const handleMouseUp = () => {
-        isDragging = false;
-      };
-
-      const handleMouseWheel = (evt) => {
-        evt.preventDefault();
-        const delta = evt.deltaY < 0 ? 1.1 : 0.9;
-        const newScale = scale * delta;
+    }
+    if (evt.touches.length === 2) {
+        const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+        const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+        const newDistance = Math.sqrt(dx * dx + dy * dy);
+        const newScale = (newDistance / startDistance) * startScale;
         if (newScale >= 0.1 && newScale <= 10) {
-            const mouseX = evt.pageX - canvas.offsetLeft;
-            const mouseY = evt.pageY - canvas.offsetTop;
-
-            // Adjust posX and posY to keep the canvas centered on the mouse pointer
-            posX -= (mouseX - posX) * (delta - 1);
-            posY -= (mouseY - posY) * (delta - 1);
-
+            const scaleRatio = newScale / scale;
+            posX -= (midpointX - posX) * (scaleRatio - 1);
+            posY -= (midpointY - posY) * (scaleRatio - 1);
             scale = newScale;
             draw();
         }
-      };
+    }
+};
 
-      canvas.addEventListener('touchstart', handleTouchStart);
-      canvas.addEventListener('touchmove', handleTouchMove);
-      canvas.addEventListener('touchend', handleTouchEnd);
+const handleTouchEnd = (evt) => {
+    evt.preventDefault();
+    isDragging = false;
+    const now = new Date().getTime();
+    if (now - lastTouchEnd <= 300) {
+        resetCanvas();
+    }
+    lastTouchEnd = now;
+};
 
-      canvas.addEventListener('mousedown', handleMouseDown);
-      canvas.addEventListener('mousemove', handleMouseMove);
-      canvas.addEventListener('mouseup', handleMouseUp);
-      canvas.addEventListener('wheel', handleMouseWheel);
-      
-      draw();
+const handleMouseDown = (evt) => {
+    evt.preventDefault();
+    isDragging = true;
+    startX = evt.pageX - posX;
+    startY = evt.pageY - posY;
+};
+
+const handleMouseMove = (evt) => {
+    if (!isDragging) return;
+    evt.preventDefault();
+    posX = evt.pageX - startX;
+    posY = evt.pageY - startY;
+    draw();
+};
+
+const handleMouseUp = () => {
+    isDragging = false;
+};
+
+const handleMouseWheel = (evt) => {
+    evt.preventDefault();
+    const delta = evt.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = scale * delta;
+    if (newScale >= 0.1 && newScale <= 10) {
+        const mouseX = evt.pageX - canvas.offsetLeft;
+        const mouseY = evt.pageY - canvas.offsetTop;
+
+        posX -= (mouseX - posX) * (delta - 1);
+        posY -= (mouseY - posY) * (delta - 1);
+
+        scale = newScale;
+        draw();
+    }
+};
+
+const resetCanvas = () => {
+    scale = 1;
+    posX = 0;
+    posY = 0;
+    draw();
+};
+
+const handleDoubleClick = (evt) => {
+    evt.preventDefault();
+    resetCanvas();
+};
+
+canvas.addEventListener('touchstart', handleTouchStart);
+canvas.addEventListener('touchmove', handleTouchMove);
+canvas.addEventListener('touchend', handleTouchEnd);
+
+canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('mousemove', handleMouseMove);
+canvas.addEventListener('mouseup', handleMouseUp);
+canvas.addEventListener('wheel', handleMouseWheel);
+canvas.addEventListener('dblclick', handleDoubleClick);
+
+draw();
     </script>
 {% endblock %}
