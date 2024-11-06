@@ -25,7 +25,15 @@
     <canvas id="drawingCanvas" width="500" height="500"></canvas>
     <script>
 
-      function drawElement(ctx, path, color) {        
+      const canvas = document.getElementById('drawingCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      let scale = 1;
+      let posX = 0;
+      let posY = 0;
+      let lastTouchEnd = 0;
+      
+      function drawElement(path, color) {        
         ctx.beginPath();
         ctx.strokeStyle = color;
         for (let i = 0; i < path.length; i++) {
@@ -35,126 +43,114 @@
         ctx.closePath();
         ctx.stroke();
       }
-
-      class Transform {
-        constructor(ctx) {
-          this.ctx = ctx;
-          this.s = 1;
-          this.dx = 0;
-          this.dy = 0;
-        }
-        
-        scale(s) {
-          this.ctx.scale(s, s);
-          this.s *= 1 / s;
-          this.dx *= 1 / s;
-          this.dy *= 1 / s;
-        }
-        
-        translate(dx, dy) {
-          this.ctx.translate(dx, dy);
-          this.dx -= dx;
-          this.dy -= dy;
-        }
-        
-        transform({ x, y }) {
-          return {
-            x: this.s * x + this.dx,
-            y: this.s * y + this.dy
-          };
-        }
-      }
       
-      class PanAndZoom {
-        constructor(canvas, draw) {
-          this.canvas = canvas;
-          this.ctx = this.canvas.getContext('2d');
-          this.onDraw = draw;
-          this.transform = new Transform(this.ctx);
+      const draw = () => {
+          ctx.save();
+          ctx.setTransform(scale, 0, 0, scale, posX, posY);
+          ctx.clearRect(-posX / scale, -posY / scale, canvas.width / scale, canvas.height / scale);
+                
+          {% for el in pathes %}
+          drawElement({{el.path | tojson}}, '{{el.color}}');
+          {% endfor %}
           
-          this.canvas.addEventListener('wheel', e => this.onWheel(e));
-          this.canvas.addEventListener('mousedown', e => this.onMouseDown(e));
-          this.canvas.addEventListener('mousemove', e => this.onMouseMove(e));
-          this.canvas.addEventListener('mouseup', e => this.onMouseUp(e));
-          
-          this.draw();
-        }
-        
-        draw() {
-          this.onDraw(this.ctx, this.transform);
-        }
+          ctx.restore();
+      };
       
-        mouseOffset(e) {
-            return { x: e.pageX - this.canvas.offsetLeft, y: e.pageY - this.canvas.offsetTop };
-        }
+      const handleTouchStart = (evt) => {
+          evt.preventDefault();  // Prevent default touch actions
+          if (evt.touches.length === 1) {
+              // Single touch - start panning
+              let touch = evt.touches[0];
+              canvas.dataset.startX = touch.pageX - posX;
+              canvas.dataset.startY = touch.pageY - posY;
+          }
+          if (evt.touches.length === 2) {
+              // Two fingers - start zooming
+              const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+              const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+              canvas.dataset.startDistance = Math.sqrt(dx * dx + dy * dy);
+              canvas.dataset.startScale = scale;
+          }
+      };
       
-        onMouseDown(e, ctx) {
-          e.preventDefault();
-          e.stopPropagation();
-          this.dragStart = this.transform.transform(this.mouseOffset(e));
-          this.dragging = true;
-        }
-      
-        onMouseMove(e, ctx) {
-          e.preventDefault();
-          e.stopPropagation();
-      
-          if (!this.dragging) {
-            return;
+      const handleTouchMove = (evt) => {
+          evt.preventDefault();  // Prevent default touch actions
+          if (evt.touches.length === 1) {
+              // Single touch - panning
+              let touch = evt.touches[0];
+              posX = touch.pageX - canvas.dataset.startX;
+              posY = touch.pageY - canvas.dataset.startY;
           }
       
-          const offset = this.mouseOffset(e);
-          const dragEnd = this.transform.transform(offset);
-          const dx = dragEnd.x - this.dragStart.x;
-          const dy = dragEnd.y - this.dragStart.y;
-          this.transform.translate(dx, dy);
-          this.draw();
-          this.dragStart = this.transform.transform(offset);
-        }
+          if (evt.touches.length === 2) {
+              // Two fingers - zooming
+              const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+              const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+              const newDistance = Math.sqrt(dx * dx + dy * dy);
+              const newScale = (newDistance / canvas.dataset.startDistance) * canvas.dataset.startScale;
+              scale = newScale > 0.1 ? Math.min(newScale, 10) : 0.1; // Ensure scale stays within a reasonable range
+          }
+          draw();
+      };
       
-        onMouseUp(e, ctx) {
-          e.preventDefault();
-          e.stopPropagation();
-      
-          this.dragging = false;
-        }
-      
-        onWheel(e, ctx) {
-          e.preventDefault();
-          e.stopPropagation();
-      
-          const offset = this.mouseOffset(e);
-          const t = this.transform.transform(offset);
-          this.transform.translate(t.x, t.y);
-          const factor = Math.sign(e.deltaY) > 0 ? 0.9 : 1.1;
-          this.transform.scale(factor);
-          this.transform.translate(-t.x, -t.y);
-          this.draw();
-        }
-      }
-      
-      function clearCanvas(ctx, transform) {
-        const { x: left, y: top } = transform.transform({ x: 0, y: 0 });
-        const { x: right, y: bottom } = transform.transform({ x: ctx.canvas.width, y: ctx.canvas.height });
-        const width = Math.abs(right - left);
-        const height = Math.abs(bottom - top);
-        ctx.fillStyle = 'white';
-        ctx.fillRect(left, top, width, height);
-      }
+      const handleTouchEnd = (evt) => {
+          evt.preventDefault();  // Prevent default touch actions
+          const now = new Date().getTime();
+          if (now - lastTouchEnd <= 300) {
+              // Double-tap detected - reset pan and zoom
+              scale = 1;
+              posX = 0;
+              posY = 0;
+          }
+          lastTouchEnd = now;
+          draw();
+      };
             
-      function draw(ctx, transform) {
-        clearCanvas(ctx, transform);
-        {% for el in pathes %}
-        drawElement(ctx,{{el.path | tojson}}, '{{el.color}}');
-        {% endfor %}
-      }
+      const handleMouseDown = (evt) => {
+        evt.preventDefault();
+        isDragging = true;
+        startX = evt.pageX - posX;
+        startY = evt.pageY - posY;
+      };
+
+      const handleMouseMove = (evt) => {
+        if (!isDragging) return;
+        evt.preventDefault();
+        posX = evt.pageX - startX;
+        posY = evt.pageY - startY;
+        draw();
+      };
+
+      const handleMouseUp = () => {
+        isDragging = false;
+      };
+
+      const handleMouseWheel = (evt) => {
+        evt.preventDefault();
+        const delta = evt.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = scale * delta;
+        if (newScale >= 0.1 && newScale <= 10) {
+            const mouseX = evt.pageX - canvas.offsetLeft;
+            const mouseY = evt.pageY - canvas.offsetTop;
+
+            // Adjust posX and posY to keep the canvas centered on the mouse pointer
+            posX -= (mouseX - posX) * (delta - 1);
+            posY -= (mouseY - posY) * (delta - 1);
+
+            scale = newScale;
+            draw();
+        }
+      };
+
+      canvas.addEventListener('touchstart', handleTouchStart);
+      canvas.addEventListener('touchmove', handleTouchMove);
+      canvas.addEventListener('touchend', handleTouchEnd);
+
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('wheel', handleMouseWheel);
       
-      function run() {
-        const canvas = document.getElementById('drawingCanvas');
-        const panAndZoom = new PanAndZoom(canvas, draw);
-      }
-      
-      document.addEventListener('DOMContentLoaded', run);
-      
+      draw();
     </script>
 {% endblock %}
