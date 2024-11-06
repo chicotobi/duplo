@@ -13,8 +13,8 @@ angc = cos(pi / 6)
 c0 = l0 * 7 / 2 / 3 ** .5
 
 def zero_position():
-    x0 = 250.
-    y0 = 250.
+    x0 = 0.
+    y0 = 0.
     return [(x0 - w0 / 2, y0), (x0 + w0 / 2, y0)]
 
 def straight():

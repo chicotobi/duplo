@@ -22,10 +22,24 @@
     </form>
 
     <br>
-    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <canvas id="drawingCanvas"></canvas>
     <script>
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    var offsetLeft = canvas.offsetLeft;
+    var offsetTop = canvas.offsetTop;
+
+    canvas.width = window.innerWidth - 1.1 * offsetLeft;
+    canvas.height = window.innerHeight - 1.1 * offsetTop;
+}
+
+// Resize the canvas initially
+resizeCanvas();
+
+// Add an event listener to resize the canvas whenever the window is resized
+window.addEventListener('resize', resizeCanvas, false);
 
 let scale = 1;
 let posX = 0;
@@ -44,7 +58,9 @@ const drawElement = (path, color) => {
   ctx.strokeStyle = color;
   for (let i = 0; i < path.length; i++) {
     // HTML canvas is inverted
-    ctx.lineTo(path[i].x, 500 - path[i].y);
+    var xx = canvas.width/2 + path[i].x;
+    var yy = canvas.height/2 - path[i].y;
+    ctx.lineTo(xx, yy);
   }
   ctx.closePath();
   ctx.stroke();
