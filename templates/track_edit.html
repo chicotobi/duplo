@@ -27,11 +27,14 @@
 
       const canvas = document.getElementById('drawingCanvas');
       const ctx = canvas.getContext('2d');
-      
+            
       let scale = 1;
       let posX = 0;
       let posY = 0;
       let lastTouchEnd = 0;
+      let isDragging = false;
+      let startX, startY;
+
       
       function drawElement(path, color) {        
         ctx.beginPath();
