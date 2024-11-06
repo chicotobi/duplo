@@ -74,22 +74,28 @@
       };
       
       const handleTouchMove = (evt) => {
-          evt.preventDefault();  // Prevent default touch actions
-          if (evt.touches.length === 1) {
-              // Single touch - panning
-              let touch = evt.touches[0];
-              posX = touch.pageX - canvas.dataset.startX;
-              posY = touch.pageY - canvas.dataset.startY;
-          }
-      
-          if (evt.touches.length === 2) {
-              // Two fingers - zooming
-              const dx = evt.touches[0].pageX - evt.touches[1].pageX;
-              const dy = evt.touches[0].pageY - evt.touches[1].pageY;
-              const newDistance = Math.sqrt(dx * dx + dy * dy);
-              const newScale = (newDistance / canvas.dataset.startDistance) * canvas.dataset.startScale;
-              scale = newScale > 0.1 ? Math.min(newScale, 10) : 0.1; // Ensure scale stays within a reasonable range
-          }
+        evt.preventDefault();
+        if (evt.touches.length === 1) {
+            let touch = evt.touches[0];
+            posX = touch.pageX - canvas.dataset.startX;
+            posY = touch.pageY - canvas.dataset.startY;
+        }
+        if (evt.touches.length === 2) {
+            const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+            const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+            const newDistance = Math.sqrt(dx * dx + dy * dy);
+            const newScale = (newDistance / canvas.dataset.startDistance) * canvas.dataset.startScale;
+            if(newScale >= 0.1 && newScale <= 10) {
+                // Adjust posX and posY to keep the zoom centered at the midpoint
+                const scaleRatio = newScale / scale;
+                const midpointX = canvas.dataset.midpointX - canvas.offsetLeft;
+                const midpointY = canvas.dataset.midpointY - canvas.offsetTop;
+                posX -= (midpointX - posX) * (scaleRatio - 1);
+                posY -= (midpointY - posY) * (scaleRatio - 1);
+                scale = newScale;
+                draw();
+            }
+        }
           draw();
       };
       
