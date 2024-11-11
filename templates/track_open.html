@@ -1,15 +1,11 @@
 {% extends "layout.html" %}
 
-{% block title %}
-    Open track
-{% endblock %}
-
 {% block main %}
 <form action="/track_open" method="post">
     <div class="mb-3">
         <select class="form-select" name="track_id" placeholder="Title">
             {% for track in tracks %}
-                <option value="{{ track.id }}">{{ track.title }}</option>
+            <option value="{{ track.id }}">{{ track.title }}</option>
             {% endfor %}
         </select>
     </div>

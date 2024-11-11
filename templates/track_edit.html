@@ -1,197 +1,198 @@
 {% extends "layout.html" %}
 
-{% block title %}
-    Edit {{title}}
-{% endblock %}
-
 {% block main %}
-    <form action="/track_edit" method="post">
-      <div class="button-container">
-        <input class="edit_buttons_top" type ="submit" name="left"     value = "Left curve &ShortLeftArrow; ({{ counter.curve }} / {{ user_lib.curve }})">
-        <input class="edit_buttons_top" type ="submit" name="straight" value = "Straight &ShortUpArrow;  ({{ counter.straight }} / {{ user_lib.straight }})">
-        <input class="edit_buttons_top" type ="submit" name="right"    value = "Right curve &ShortRightArrow;  ({{ counter.curve }} / {{ user_lib.curve }})">
-        <input class="edit_buttons_top" type ="submit" name="switch"   value = "Switch  ({{ counter.switch }} / {{ user_lib.switch }})">
-        <input class="edit_buttons_top" type ="submit" name="crossing" value = "Crossing  ({{ counter.crossing }} / {{ user_lib.crossing }})">
-      </div>
-      <div class="button-container">
-        <input class="edit_buttons_bottom" type ="submit" name="rotate"      value = "Rotate piece &circlearrowright;">
-        <input class="edit_buttons_bottom" type ="submit" name="next_ending" value = "Next ending &#x23E9;">
-        <input class="edit_buttons_bottom" type ="submit" name="save"     value = "Save &#128190;">
-        <input class="edit_buttons_bottom" type ="submit" name="delete"   value = "Delete &#10060;">
-      </div>
-    </form>
+<form action="/track_edit" method="post">
+    <div class="button-container">
+        <input class="edit_buttons_top" type="submit" name="left"
+            value="Left curve &ShortLeftArrow; ({{ counter.curve }} / {{ user_lib.curve }})">
+        <input class="edit_buttons_top" type="submit" name="straight"
+            value="Straight &ShortUpArrow;  ({{ counter.straight }} / {{ user_lib.straight }})">
+        <input class="edit_buttons_top" type="submit" name="right"
+            value="Right curve &ShortRightArrow;  ({{ counter.curve }} / {{ user_lib.curve }})">
+        <input class="edit_buttons_top" type="submit" name="switch"
+            value="Switch  ({{ counter.switch }} / {{ user_lib.switch }})">
+        <input class="edit_buttons_top" type="submit" name="crossing"
+            value="Crossing  ({{ counter.crossing }} / {{ user_lib.crossing }})">
+    </div>
+    <div class="button-container">
+        <input class="edit_buttons_bottom" type="submit" name="rotate" value="Rotate piece &circlearrowright;">
+        <input class="edit_buttons_bottom" type="submit" name="next_ending" value="Next ending &#x23E9;">
+        <input class="edit_buttons_bottom" type="submit" name="save" value="Save &#128190;">
+        <input class="edit_buttons_bottom" type="submit" name="delete" value="Delete &#10060;">
+    </div>
+</form>
 
-    <br>
-    <canvas id="drawingCanvas"></canvas>
-    <script>
-const canvas = document.getElementById('drawingCanvas');
-const ctx = canvas.getContext('2d');
+<br>
+<canvas id="drawingCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
 
-function resizeCanvas() {
-    var offsetLeft = canvas.offsetLeft;
-    var offsetTop = canvas.offsetTop;
+    function resizeCanvas() {
+        var offsetLeft = canvas.offsetLeft;
+        var offsetTop = canvas.offsetTop;
 
-    canvas.width = window.innerWidth - 1.1 * offsetLeft;
-    canvas.height = window.innerHeight - 1.1 * offsetTop;
-}
+        canvas.width = window.innerWidth - 1.1 * offsetLeft;
+        canvas.height = window.innerHeight - 1.1 * offsetTop;
+    }
 
-// Resize the canvas initially
-resizeCanvas();
+    // Resize the canvas initially
+    resizeCanvas();
 
-// Add an event listener to resize the canvas whenever the window is resized
-window.addEventListener('resize', resizeCanvas, false);
+    // Add an event listener to resize the canvas whenever the window is resized
+    window.addEventListener('resize', resizeCanvas, false);
 
-let scale = 1;
-let posX = 0;
-let posY = 0;
-let startDistance = 0;
-let startScale = 1;
-let startX = 0;
-let startY = 0;
-let midpointX = 0;
-let midpointY = 0;
-let isDragging = false;
-let lastTouchEnd = 0;
+    let scale = 1;
+    let posX = 0;
+    let posY = 0;
+    let startDistance = 0;
+    let startScale = 1;
+    let startX = 0;
+    let startY = 0;
+    let midpointX = 0;
+    let midpointY = 0;
+    let isDragging = false;
+    let lastTouchEnd = 0;
 
-const drawElement = (path, color) => {        
-  ctx.beginPath();
-  ctx.strokeStyle = color;
-  for (let i = 0; i < path.length; i++) {
-    // HTML canvas is inverted
-    var xx = canvas.width/2 + path[i].x;
-    var yy = canvas.height/2 - path[i].y;
-    ctx.lineTo(xx, yy);
-  }
-  ctx.closePath();
-  ctx.stroke();
-};
+    const drawElement = (path, color) => {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        for (let i = 0; i < path.length; i++) {
+            // HTML canvas is inverted
+            var xx = canvas.width / 2 + path[i].x;
+            var yy = canvas.height / 2 - path[i].y;
+            ctx.lineTo(xx, yy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    };
 
-const draw = () => {
-    ctx.save();
-    ctx.setTransform(scale, 0, 0, scale, posX, posY);
-    ctx.clearRect(-posX / scale, -posY / scale, canvas.width / scale, canvas.height / scale);
+    const draw = () => {
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, posX, posY);
+        ctx.clearRect(-posX / scale, -posY / scale, canvas.width / scale, canvas.height / scale);
 
-    {% for el in pathes %}
-    drawElement({{el.path | tojson}}, '{{el.color}}');
+        {% for el in pathes %}
+        drawElement({{ el.path | tojson }}, '{{el.color}}');
     {% endfor %}
 
     ctx.restore();
 };
 
-const handleTouchStart = (evt) => {
-    evt.preventDefault();
-    if (evt.touches.length === 1) {
-        let touch = evt.touches[0];
-        startX = touch.pageX - posX;
-        startY = touch.pageY - posY;
-        isDragging = true;
-    }
-    if (evt.touches.length === 2) {
-        const dx = evt.touches[0].pageX - evt.touches[1].pageX;
-        const dy = evt.touches[0].pageY - evt.touches[1].pageY;
-        startDistance = Math.sqrt(dx * dx + dy * dy);
-        startScale = scale;
-        midpointX = (evt.touches[0].pageX + evt.touches[1].pageX) / 2;
-        midpointY = (evt.touches[0].pageY + evt.touches[1].pageY) / 2;
-    }
-};
+    const handleTouchStart = (evt) => {
+        evt.preventDefault();
+        if (evt.touches.length === 1) {
+            let touch = evt.touches[0];
+            startX = touch.pageX - posX;
+            startY = touch.pageY - posY;
+            isDragging = true;
+        }
+        if (evt.touches.length === 2) {
+            const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+            const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+            startDistance = Math.sqrt(dx * dx + dy * dy);
+            startScale = scale;
+            midpointX = (evt.touches[0].pageX + evt.touches[1].pageX) / 2;
+            midpointY = (evt.touches[0].pageY + evt.touches[1].pageY) / 2;
+        }
+    };
 
-const handleTouchMove = (evt) => {
-    evt.preventDefault();
-    if (evt.touches.length === 1 && isDragging) {
-        let touch = evt.touches[0];
-        posX = touch.pageX - startX;
-        posY = touch.pageY - startY;
+    const handleTouchMove = (evt) => {
+        evt.preventDefault();
+        if (evt.touches.length === 1 && isDragging) {
+            let touch = evt.touches[0];
+            posX = touch.pageX - startX;
+            posY = touch.pageY - startY;
+            draw();
+        }
+        if (evt.touches.length === 2) {
+            const dx = evt.touches[0].pageX - evt.touches[1].pageX;
+            const dy = evt.touches[0].pageY - evt.touches[1].pageY;
+            const newDistance = Math.sqrt(dx * dx + dy * dy);
+            const newScale = (newDistance / startDistance) * startScale;
+            if (newScale >= 0.1 && newScale <= 10) {
+                const scaleRatio = newScale / scale;
+
+                // Calculate new positions based on the midpoint
+                const canvasMidX = midpointX - canvas.offsetLeft;
+                const canvasMidY = midpointY - canvas.offsetTop;
+                posX = canvasMidX - (canvasMidX - posX) * scaleRatio;
+                posY = canvasMidY - (canvasMidY - posY) * scaleRatio;
+
+                scale = newScale;
+                draw();
+            }
+        }
+    };
+
+    const handleTouchEnd = (evt) => {
+        evt.preventDefault();
+        isDragging = false;
+        const now = new Date().getTime();
+        if (now - lastTouchEnd <= 300) {
+            resetCanvas();
+        }
+        lastTouchEnd = now;
+    };
+
+    const handleMouseDown = (evt) => {
+        evt.preventDefault();
+        isDragging = true;
+        startX = evt.pageX - posX;
+        startY = evt.pageY - posY;
+    };
+
+    const handleMouseMove = (evt) => {
+        if (!isDragging) return;
+        evt.preventDefault();
+        posX = evt.pageX - startX;
+        posY = evt.pageY - startY;
         draw();
-    }
-    if (evt.touches.length === 2) {
-        const dx = evt.touches[0].pageX - evt.touches[1].pageX;
-        const dy = evt.touches[0].pageY - evt.touches[1].pageY;
-        const newDistance = Math.sqrt(dx * dx + dy * dy);
-        const newScale = (newDistance / startDistance) * startScale;
+    };
+
+    const handleMouseUp = () => {
+        isDragging = false;
+    };
+
+    const handleMouseWheel = (evt) => {
+        evt.preventDefault();
+        const delta = evt.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = scale * delta;
         if (newScale >= 0.1 && newScale <= 10) {
-            const scaleRatio = newScale / scale;
-            
-            // Calculate new positions based on the midpoint
-            const canvasMidX = midpointX - canvas.offsetLeft;
-            const canvasMidY = midpointY - canvas.offsetTop;
-            posX = canvasMidX - (canvasMidX - posX) * scaleRatio;
-            posY = canvasMidY - (canvasMidY - posY) * scaleRatio;
-            
+            const mouseX = evt.pageX - canvas.offsetLeft;
+            const mouseY = evt.pageY - canvas.offsetTop;
+
+            // Adjust posX and posY to keep the canvas centered on the mouse pointer
+            posX -= (mouseX - posX) * (delta - 1);
+            posY -= (mouseY - posY) * (delta - 1);
+
             scale = newScale;
             draw();
         }
-    }
-};
+    };
 
-const handleTouchEnd = (evt) => {
-    evt.preventDefault();
-    isDragging = false;
-    const now = new Date().getTime();
-    if (now - lastTouchEnd <= 300) {
-        resetCanvas();
-    }
-    lastTouchEnd = now;
-};
-
-const handleMouseDown = (evt) => {
-    evt.preventDefault();
-    isDragging = true;
-    startX = evt.pageX - posX;
-    startY = evt.pageY - posY;
-};
-
-const handleMouseMove = (evt) => {
-    if (!isDragging) return;
-    evt.preventDefault();
-    posX = evt.pageX - startX;
-    posY = evt.pageY - startY;
-    draw();
-};
-
-const handleMouseUp = () => {
-    isDragging = false;
-};
-
-const handleMouseWheel = (evt) => {
-    evt.preventDefault();
-    const delta = evt.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = scale * delta;
-    if (newScale >= 0.1 && newScale <= 10) {
-        const mouseX = evt.pageX - canvas.offsetLeft;
-        const mouseY = evt.pageY - canvas.offsetTop;
-
-        // Adjust posX and posY to keep the canvas centered on the mouse pointer
-        posX -= (mouseX - posX) * (delta - 1);
-        posY -= (mouseY - posY) * (delta - 1);
-
-        scale = newScale;
+    const resetCanvas = () => {
+        scale = 1;
+        posX = 0;
+        posY = 0;
         draw();
-    }
-};
+    };
 
-const resetCanvas = () => {
-    scale = 1;
-    posX = 0;
-    posY = 0;
+    const handleDoubleClick = (evt) => {
+        evt.preventDefault();
+        resetCanvas();
+    };
+
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', handleTouchEnd);
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('wheel', handleMouseWheel);
+    canvas.addEventListener('dblclick', handleDoubleClick);
+
     draw();
-};
-
-const handleDoubleClick = (evt) => {
-    evt.preventDefault();
-    resetCanvas();
-};
-
-canvas.addEventListener('touchstart', handleTouchStart);
-canvas.addEventListener('touchmove', handleTouchMove);
-canvas.addEventListener('touchend', handleTouchEnd);
-
-canvas.addEventListener('mousedown', handleMouseDown);
-canvas.addEventListener('mousemove', handleMouseMove);
-canvas.addEventListener('mouseup', handleMouseUp);
-canvas.addEventListener('wheel', handleMouseWheel);
-canvas.addEventListener('dblclick', handleDoubleClick);
-
-draw();
-    </script>
+</script>
 {% endblock %}

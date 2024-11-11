@@ -1,29 +1,25 @@
 {% extends "layout.html" %}
 
-{% block title %}
-    Set library
-{% endblock %}
-
 {% block main %}
 Set your library, i.e. the number of pieces that are available to you
 <form action="/library_set" method="post">
     <div class="mb-3">
         <div class="form-group">
-        <label>Number of straights:</label>
-        <input type="number" name="straight" value = {{ user_lib.straight }} required><br><br>
-    </div>
-    <div class="form-group">
-        <label>Number of curves:</label>
-        <input type="number" name="curve" value = {{ user_lib.curve }} required><br><br>
-    </div>
-    <div class="form-group">
-        <label>Number of switches:</label>
-        <input type="number" name="switch" value = {{ user_lib.switch }} required><br><br>
-    </div>
-    <div class="form-group">
-        <label>Number of crossings:</label>
-        <input type="number" name="crossing" value = {{ user_lib.crossing }} required><br><br>
-    </div>
-    <button type="submit" class="btn btn-primary">Submit</button>
+            <label>Number of straights:</label>
+            <input type="number" name="straight" value={{ user_lib.straight }} required><br><br>
+        </div>
+        <div class="form-group">
+            <label>Number of curves:</label>
+            <input type="number" name="curve" value={{ user_lib.curve }} required><br><br>
+        </div>
+        <div class="form-group">
+            <label>Number of switches:</label>
+            <input type="number" name="switch" value={{ user_lib.switch }} required><br><br>
+        </div>
+        <div class="form-group">
+            <label>Number of crossings:</label>
+            <input type="number" name="crossing" value={{ user_lib.crossing }} required><br><br>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
 </form>
 {% endblock %}
