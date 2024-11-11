@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Debug
+{% endblock %}
+
+{% block main %}
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>name</th>
+        <th>hash</th>
+        <th>straight</th>
+        <th>curve</th>
+        <th>switch</th>
+        <th>crossing </th>
+    </tr>
+{% for row in users_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['name'] }}</td>
+  <td>{{ row['hash'] }}</td>
+  <td>{{ row['straight'] }}</td>
+  <td>{{ row['curve'] }}</td>
+  <td>{{ row['switch'] }}</td>
+  <td>{{ row['crossing'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>user_id</th>
+        <th>title</th>
+    </tr>
+{% for row in tracks_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['user_id'] }}</td>
+  <td>{{ row['title'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>track_id</th>
+        <th>idx</th>
+        <th>tracktype</th>
+    </tr>
+{% for row in pieces_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['track_id'] }}</td>
+  <td>{{ row['idx'] }}</td>
+  <td>{{ row['piece'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<table>
+    <tr>
+        <th>id</th>
+        <th>track_id</th>
+        <th>p1</th>
+        <th>e1</th>
+        <th>p2</th>
+        <th>e2</th>
+    </tr>
+{% for row in connections_debug %}
+<tr>
+  <td>{{ row['id'] }}</td>
+  <td>{{ row['track_id'] }}</td>
+  <td>{{ row['p1'] }}</td>
+  <td>{{ row['e1'] }}</td>
+  <td>{{ row['p2'] }}</td>
+  <td>{{ row['e2'] }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

@@ -98,6 +98,9 @@
                                   <a class="dropdown-item" href="/user_logout">Log out</a>
                                 </div>
                               </li>
+                              {% if session["user_name"] == 'tobi' %}
+                              <li class="nav-item"><a class="nav-link" href="/debug">Debug info</a></li>
+                              {% endif %}
                         </ul>
                     {% else %}
                         <ul class="navbar-nav me-auto mt-2">

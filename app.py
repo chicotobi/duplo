@@ -21,6 +21,17 @@ def index():
         users_debug = tracks_debug = pieces_debug = connections_debug = []
     return render_template('index.html', DEBUG = DEBUG, users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
 
+@app.route("/debug")
+def debug():
+    if session['user_name'] == 'tobi':
+        users_debug = users_read_all()
+        tracks_debug = tracks_read_all()
+        pieces_debug = pieces_read_all()
+        connections_debug = connections_read_all()
+        return render_template('debug.html', users_debug = users_debug, tracks_debug = tracks_debug, pieces_debug = pieces_debug, connections_debug = connections_debug)
+    else:
+        return render_template('error.html', msg = "Debug only for admin")
+
 @app.route("/track_create", methods=["GET", "POST"])
 @login_required
 def track_create():    
@@ -338,6 +349,7 @@ def user_login():
     # Remember which user has logged in
     ids = users_read(name)
     session["user_id"] = ids[0]["id"]
+    session["user_name"] = name
 
     return redirect("/")
     
