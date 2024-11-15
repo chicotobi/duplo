@@ -32,7 +32,9 @@ def sql(cmd):
     if DEBUG:
         print(cmd)
     result = db.session.execute(text(cmd))
-    if any(i in cmd for i in ['insert', 'update', 'delete', 'PRAGMA']):
+    if 'PRAGMA' in cmd and 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+        db.session.commit()
+    elif any(i in cmd for i in ['insert', 'update', 'delete']):
         db.session.commit()
     if 'select' in cmd:
         result = [dict(row._mapping) for row in result]
