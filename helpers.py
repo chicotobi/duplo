@@ -27,14 +27,16 @@ else:
     con_str = 'mysql+pymysql://' + user + ':' + password + '@' + host + '/' + dbname
 app.config['SQLALCHEMY_DATABASE_URI'] = con_str
 db = SQLAlchemy(app)
+print('jjjjajaj','sqlite' in app.config['SQLALCHEMY_DATABASE_URI'])
 
 def sql(cmd):
+    if 'PRAGMA' in cmd and 'mysql' in app.config['SQLALCHEMY_DATABASE_URI']:
+        return
     if DEBUG:
         print(cmd)
-    result = db.session.execute(text(cmd))
-    if 'PRAGMA' in cmd and 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
         db.session.commit()
-    elif any(i in cmd for i in ['insert', 'update', 'delete']):
+    result = db.session.execute(text(cmd))
+    if any(i in cmd for i in ['insert', 'update', 'delete','PRAGMA']):
         db.session.commit()
     if 'select' in cmd:
         result = [dict(row._mapping) for row in result]
