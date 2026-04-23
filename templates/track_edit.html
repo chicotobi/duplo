@@ -1,46 +1,329 @@
 {% extends "layout.html" %}
 
 {% block main %}
-<form action="/track_edit" method="post">
-    <div class="button-container">
-        <input class="edit_buttons_top" type="submit" name="left"
-            value="Left curve &ShortLeftArrow; ({{ counter.curve }} / {{ user_lib.curve }})">
-        <input class="edit_buttons_top" type="submit" name="straight"
-            value="Straight &ShortUpArrow;  ({{ counter.straight }} / {{ user_lib.straight }})">
-        <input class="edit_buttons_top" type="submit" name="right"
-            value="Right curve &ShortRightArrow;  ({{ counter.curve }} / {{ user_lib.curve }})">
-        <input class="edit_buttons_top" type="submit" name="switch"
-            value="Switch  ({{ counter.switch }} / {{ user_lib.switch }})">
-        <input class="edit_buttons_top" type="submit" name="crossing"
-            value="Crossing  ({{ counter.crossing }} / {{ user_lib.crossing }})">
-    </div>
-    <div class="button-container">
-        <input class="edit_buttons_bottom" type="submit" name="rotate" value="Rotate piece &circlearrowright;">
-        <input class="edit_buttons_bottom" type="submit" name="next_ending" value="Next ending &#x23E9;">
-        <input class="edit_buttons_bottom" type="submit" name="save" value="Save &#128190;">
-        <input class="edit_buttons_bottom" type="submit" name="delete" value="Delete &#10060;">
-    </div>
-</form>
+<style>
+    /* ---------- Edit page chrome ---------- */
+    main.container { padding: 0 !important; max-width: none !important; }
+    body { overflow: hidden; }
 
-<br>
-<canvas id="drawingCanvas"></canvas>
+    .edit-stage {
+        position: fixed;
+        inset: var(--nav-h, 56px) 0 0 0;   /* sit below the navbar */
+        overflow: hidden;
+    }
+
+    #drawingCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+        background: #7fbf52;
+    }
+
+    /* Top status strip */
+    .status-strip {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 5;
+        pointer-events: none;
+    }
+
+    .status-strip > * { pointer-events: auto; }
+
+    .status-pill {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(6px);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-weight: 600;
+        color: #333;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95em;
+        white-space: nowrap;
+    }
+
+    .status-pill img { width: 22px; height: 22px; }
+
+    .status-title {
+        font-size: 1.05em;
+        color: #1a1a1a;
+    }
+
+    .status-badge {
+        background: #ef9a9a;
+        color: #b71c1c;
+    }
+
+    .status-badge.closed {
+        background: #a5d6a7;
+        color: #1b5e20;
+    }
+
+    .counter-strip {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-left: auto;
+    }
+
+    .counter-pill {
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 999px;
+        padding: 4px 10px 4px 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 600;
+        color: #333;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        font-variant-numeric: tabular-nums;
+        font-size: 0.9em;
+    }
+
+    .counter-pill.over {
+        background: #ffcdd2;
+        color: #b71c1c;
+    }
+
+    .counter-pill img {
+        width: 24px;
+        height: 24px;
+        background: #f5f5f5;
+        border-radius: 50%;
+        padding: 2px;
+    }
+
+    .icon-btn {
+        background: rgba(255, 255, 255, 0.92);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 1.1em;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        transition: transform 0.1s ease, background 0.1s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+    }
+
+    .icon-btn:hover { transform: scale(1.07); background: #fff; }
+    .icon-btn:active { transform: scale(0.95); }
+
+    /* Bottom floating toolbar */
+    .toolbar {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 14px;
+        z-index: 5;
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        padding: 10px 12px;
+        border-radius: 18px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+        max-width: calc(100vw - 24px);
+        flex-wrap: wrap;
+        margin: 0;
+    }
+
+    .tb-group {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .tb-divider {
+        width: 1px;
+        background: rgba(0, 0, 0, 0.1);
+        margin: 0 2px;
+    }
+
+    .piece-tile {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        border: 2px solid transparent;
+        background: #f5f5f5;
+        cursor: pointer;
+        padding: 4px;
+        transition: transform 0.1s ease, background 0.1s ease, border-color 0.1s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .piece-tile img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+    }
+
+    .piece-tile:hover { background: #eceff1; transform: translateY(-2px); }
+    .piece-tile:active { transform: translateY(0); }
+
+    .piece-tile.over {
+        background: #ffebee;
+        border-color: #ef5350;
+    }
+
+    .piece-tile.flip img { transform: scaleX(-1); }
+
+    .piece-tile .badge {
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        font-size: 0.7em;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 1px 6px;
+        border-radius: 999px;
+        color: #333;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .piece-tile.over .badge { background: #c62828; color: #fff; }
+
+    .action-btn {
+        width: 56px;
+        height: 64px;
+        border-radius: 14px;
+        border: none;
+        background: #eceff1;
+        cursor: pointer;
+        font-size: 1.4em;
+        transition: transform 0.1s ease, background 0.1s ease;
+        color: #333;
+    }
+
+    .action-btn.delete { background: #ffebee; color: #c62828; }
+    .action-btn.rotate { background: #e3f2fd; color: #1565c0; }
+    .action-btn.next   { background: #fff3e0; color: #ef6c00; }
+
+    .action-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+    .action-btn:active { transform: translateY(0); }
+
+    .save-pill {
+        border: none;
+        background: linear-gradient(180deg, #66bb6a 0%, #43a047 100%);
+        color: #fff;
+        font-weight: 700;
+        padding: 0 22px;
+        border-radius: 14px;
+        cursor: pointer;
+        height: 64px;
+        font-size: 1em;
+        box-shadow: 0 3px 0 #2e7d32;
+        transition: transform 0.1s ease;
+        white-space: nowrap;
+    }
+
+    .save-pill:hover { transform: translateY(-2px); }
+    .save-pill:active { transform: translateY(2px); box-shadow: 0 1px 0 #2e7d32; }
+
+    .save-pill.closed {
+        background: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
+    }
+</style>
+
+<div class="edit-stage">
+    <canvas id="drawingCanvas"></canvas>
+
+    <div class="status-strip">
+        <span class="status-pill status-title">&#128646; {{ title }}</span>
+        <span class="status-pill status-badge {% if is_closed %}closed{% endif %}">
+            {% if is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
+        </span>
+        <div class="counter-strip">
+            {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
+            <span class="counter-pill {% if counter[piece] > user_lib[piece] %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/' + piece + '.svg') }}" alt="{{ piece }}">
+                {{ counter[piece] }} / {{ user_lib[piece] }}
+            </span>
+            {% endfor %}
+            <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
+        </div>
+    </div>
+
+    <form action="/track_edit" method="post" class="toolbar">
+        <div class="tb-group">
+            <button type="submit" name="left" title="Left curve (&larr;)"
+                class="piece-tile flip {% if counter.curve > user_lib.curve %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/curve.svg') }}" alt="left curve">
+                <span class="badge">{{ counter.curve }}/{{ user_lib.curve }}</span>
+            </button>
+            <button type="submit" name="straight" title="Straight (&uarr;)"
+                class="piece-tile {% if counter.straight > user_lib.straight %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/straight.svg') }}" alt="straight">
+                <span class="badge">{{ counter.straight }}/{{ user_lib.straight }}</span>
+            </button>
+            <button type="submit" name="right" title="Right curve (&rarr;)"
+                class="piece-tile {% if counter.curve > user_lib.curve %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/curve.svg') }}" alt="right curve">
+                <span class="badge">{{ counter.curve }}/{{ user_lib.curve }}</span>
+            </button>
+            <button type="submit" name="switch" title="Switch (S)"
+                class="piece-tile {% if counter.switch > user_lib.switch %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/switch.svg') }}" alt="switch">
+                <span class="badge">{{ counter.switch }}/{{ user_lib.switch }}</span>
+            </button>
+            <button type="submit" name="crossing" title="Crossing (X)"
+                class="piece-tile {% if counter.crossing > user_lib.crossing %}over{% endif %}">
+                <img src="{{ url_for('static', filename='pieces_svg/crossing.svg') }}" alt="crossing">
+                <span class="badge">{{ counter.crossing }}/{{ user_lib.crossing }}</span>
+            </button>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <div class="tb-group">
+            <button type="submit" name="rotate" class="action-btn rotate" title="Rotate piece (R)">&#8635;</button>
+            <button type="submit" name="next_ending" class="action-btn next" title="Next ending (Tab)">&#9193;</button>
+            <button type="submit" name="delete" class="action-btn delete" title="Delete (Backspace)">&#10006;</button>
+        </div>
+
+        <div class="tb-divider"></div>
+
+        <button type="submit" name="save" class="save-pill {% if is_closed %}closed{% endif %}" title="Save (Ctrl+S)">
+            &#128190; Save{% if is_closed %} &amp; close{% endif %}
+        </button>
+    </form>
+</div>
+
 <script>
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
 
     function resizeCanvas() {
-        var offsetLeft = canvas.offsetLeft;
-        var offsetTop = canvas.offsetTop;
-
-        canvas.width = window.innerWidth - 1.1 * offsetLeft;
-        canvas.height = window.innerHeight - 1.1 * offsetTop;
+        const nav = document.querySelector('nav');
+        if (nav) document.documentElement.style.setProperty('--nav-h', nav.getBoundingClientRect().height + 'px');
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
     }
 
     // Resize the canvas initially
     resizeCanvas();
 
     // Add an event listener to resize the canvas whenever the window is resized
-    window.addEventListener('resize', resizeCanvas, false);
+    window.addEventListener('resize', () => { resizeCanvas(); draw(); }, false);
 
     let scale = 1;
     let posX = 0;
@@ -523,5 +806,27 @@
     buildTrainPath();
     draw();
     if (trainPath) requestAnimationFrame(animate);
+
+    document.getElementById('resetView').addEventListener('click', resetCanvas);
+
+    // Keyboard shortcuts
+    const submitByName = (name) => {
+        const btn = document.querySelector(`button[name="${name}"]`);
+        if (btn) btn.click();
+    };
+    document.addEventListener('keydown', (evt) => {
+        if (evt.target && (evt.target.tagName === 'INPUT' || evt.target.tagName === 'TEXTAREA')) return;
+        if (evt.ctrlKey && evt.key.toLowerCase() === 's') { evt.preventDefault(); submitByName('save'); return; }
+        switch (evt.key) {
+            case 'ArrowLeft':  evt.preventDefault(); submitByName('left'); break;
+            case 'ArrowUp':    evt.preventDefault(); submitByName('straight'); break;
+            case 'ArrowRight': evt.preventDefault(); submitByName('right'); break;
+            case 's': case 'S': submitByName('switch'); break;
+            case 'x': case 'X': submitByName('crossing'); break;
+            case 'r': case 'R': submitByName('rotate'); break;
+            case 'Tab': evt.preventDefault(); submitByName('next_ending'); break;
+            case 'Backspace': case 'Delete': submitByName('delete'); break;
+        }
+    });
 </script>
 {% endblock %}
