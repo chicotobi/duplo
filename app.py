@@ -7,7 +7,9 @@ from helpers import login_required, app, error, DEBUG
 from sql_users import users_create, users_read, users_read_hash, users_read_all, users_delete, users_library_set, users_library_read, users_read_by_id
 from sql_tracks import tracks_create, tracks_read, tracks_read_title, tracks_read_id, tracks_read_all, tracks_update_title, tracks_delete
 from sql_layouts import pieces_update, connections_update, layouts_parse, pieces_read_all, connections_read_all, layouts_build, layouts_free_endings, pieces_read
+from thumbnails import generate_thumbnail, thumbnail_file, thumbnail_url, piece_counts, delete_thumbnail
 
+import os
 import pandas as pd
 
 @app.route("/", methods=["GET", "POST"])
@@ -66,7 +68,17 @@ def track_open():
     if request.method == "GET":
         # Get available tracks for this user
         tracks = tracks_read(user_id = session['user_id'])
-        return render_template("track_open.html", tracks = tracks)
+        track_info = []
+        for t in tracks:
+            if not os.path.exists(thumbnail_file(t['id'])):
+                generate_thumbnail(t['id'])
+            track_info.append({
+                'id': t['id'],
+                'title': t['title'],
+                'counts': piece_counts(t['id']),
+                'thumbnail': thumbnail_url(t['id']),
+            })
+        return render_template("track_open.html", tracks = track_info)
     
     # Input check
     if not request.form.get("track_id"):
@@ -118,6 +130,7 @@ def track_delete():
     track_id = request.form.get("track_id")
     
     tracks_delete(user_id, track_id)
+    delete_thumbnail(track_id)
 
     return redirect("/")
 
@@ -146,7 +159,7 @@ def edit():
     cursor_idx = session['cursor_idx']
     user_lib = session['user_lib']
     
-    _, endings = layouts_build(pieces, connections) 
+    _, endings, _ = layouts_build(pieces, connections) 
 
     free_endings = layouts_free_endings(endings,connections)
 
@@ -195,10 +208,11 @@ def edit():
         elif val == 'save':
             pieces_update(track_id = track_id, pieces = pieces)
             connections_update(track_id = track_id, connections = connections)
+            generate_thumbnail(track_id)
             return redirect("/")
 
     # Update
-    pathes, endings = layouts_build(pieces, connections) 
+    pathes, endings, centerlines_list = layouts_build(pieces, connections) 
     free_endings = layouts_free_endings(endings,connections)
 
     is_closed = len(free_endings) == 0
@@ -223,21 +237,22 @@ def edit():
     pathes2 = []
     counter = {p:0 for p in PIECE_TYPES}
     all_possible = True
-    for (piece,path) in zip(pieces,pathes):
+    for (piece,path,cls) in zip(pieces,pathes,centerlines_list):
         counter[piece] += 1
         if counter[piece] > user_lib[piece]:
             col = 'red'
             all_possible = False
         else:
             col = 'black'
-        pathes2.append({'path':path, 'color':col})
+        pathes2.append({'path':path, 'color':col, 'centerlines':cls, 'type':piece})
     if not is_closed:         
         current_ending = free_endings[cursor_idx]
         cursor = endings[current_ending[0]][current_ending[1]]
         path_cursor = get_path_cursor(cursor)
-        pathes2.append({'path':path_cursor,'color':'blue'})
+        pathes2.append({'path':path_cursor,'color':'blue','cursor':True})
     elif all_possible:
-        pathes2 = [{'path':p['path'], 'color':'green'} for p in pathes2]
+        for p in pathes2:
+            p['color'] = 'green'
     
     return render_template('track_edit.html', title = track_title, pathes = pathes2, counter = counter, user_lib = user_lib, is_closed = is_closed)
 

@@ -65,6 +65,7 @@ def layouts_parse(track_id):
 
 def layouts_build(pieces, connections):
     pathes = []
+    centerlines_per_piece = []
     all_endings = {-1: [zero_position()]}
     for idx, piece in enumerate(pieces):
         tmp = connections[connections.p2 == idx]        
@@ -75,11 +76,12 @@ def layouts_build(pieces, connections):
 
         cursor_position = all_endings[p1][e1]
 
-        pts, endings = add_piece(piece, cursor_position, e2)
+        pts, endings, cls = add_piece(piece, cursor_position, e2)
         pathes += [pts]
+        centerlines_per_piece += [cls]
         all_endings[idx] = endings
 
-    return pathes, all_endings
+    return pathes, all_endings, centerlines_per_piece
 
 def layouts_free_endings(endings, connections):
     lst = []
