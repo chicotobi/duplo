@@ -253,8 +253,27 @@ def edit():
     elif all_possible:
         for p in pathes2:
             p['color'] = 'green'
-    
-    return render_template('track_edit.html', title = track_title, pathes = pathes2, counter = counter, user_lib = user_lib, is_closed = is_closed)
+
+    # Build ghost previews for each piece type at the current cursor
+    from geometry import add_piece
+    ghosts = {}
+    if not is_closed:
+        cursor_pos = endings[current_ending[0]][current_ending[1]]
+        ghost_specs = [
+            ('straight', 'straight', 0),
+            ('right',    'curve',    0),
+            ('left',     'curve',    1),
+            ('switch',   'switch',   0),
+            ('crossing', 'crossing', 0),
+        ]
+        for action, piece_type, e2 in ghost_specs:
+            try:
+                pts, _, cls = add_piece(piece_type, cursor_pos, e2)
+                ghosts[action] = {'path': pts, 'centerlines': cls}
+            except Exception:
+                pass
+
+    return render_template('track_edit.html', title = track_title, pathes = pathes2, counter = counter, user_lib = user_lib, is_closed = is_closed, ghosts = ghosts)
 
 @app.route("/library_set", methods=["GET", "POST"])
 @login_required

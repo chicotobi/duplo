@@ -339,6 +339,8 @@
 
     const pieces = {{ pathes | tojson }};
     const isClosed = {{ 'true' if is_closed else 'false' }};
+    const ghosts = {{ ghosts | tojson }};
+    let ghostName = null;
 
     // ---------- Deterministic decorations (meadow) ----------
     function mulberry32(seed) {
@@ -482,6 +484,7 @@
     function railColor(c) {
         if (c === 'red') return '#c62828';
         if (c === 'green') return '#2e7d32';
+        if (c === 'ghost') return '#1565c0';
         return '#bdbdbd';
     }
 
@@ -674,6 +677,15 @@
             }
         }
 
+        if (ghostName && ghosts[ghostName]) {
+            const g = ghosts[ghostName];
+            ctx.save();
+            ctx.globalAlpha = 0.55;
+            fillPolygon(g.path, '#90caf9');
+            drawTiesAndRails(g.centerlines || [], 'ghost');
+            ctx.restore();
+        }
+
         if (trainPath) drawTrain(trainS);
 
         ctx.restore();
@@ -808,6 +820,17 @@
     if (trainPath) requestAnimationFrame(animate);
 
     document.getElementById('resetView').addEventListener('click', resetCanvas);
+
+    // Ghost preview on hover over piece tiles
+    document.querySelectorAll('.piece-tile').forEach(tile => {
+        const name = tile.getAttribute('name');
+        const show = () => { ghostName = name; draw(); };
+        const hide = () => { if (ghostName === name) { ghostName = null; draw(); } };
+        tile.addEventListener('mouseenter', show);
+        tile.addEventListener('mouseleave', hide);
+        tile.addEventListener('focus', show);
+        tile.addEventListener('blur', hide);
+    });
 
     // Keyboard shortcuts
     const submitByName = (name) => {
