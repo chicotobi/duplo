@@ -1,0 +1,70 @@
+name: Deploy to PythonAnywhere
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      PA_USERNAME: ${{ secrets.PA_USERNAME }}
+      PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+      PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
+      PA_PROJECT_DIR: ${{ secrets.PA_PROJECT_DIR }}
+    steps:
+      - name: Git pull on PythonAnywhere
+        run: |
+          set -euo pipefail
+          API="https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}"
+          AUTH="Authorization: Token ${PA_API_TOKEN}"
+
+          echo "Creating bash console..."
+          CONSOLE_ID=$(curl -sS --fail -H "$AUTH" \
+            -X POST "${API}/consoles/" \
+            -d "executable=bash" \
+            | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+          echo "Console id: $CONSOLE_ID"
+
+          # Initialise the console (send_input only works once it's running).
+          for i in $(seq 1 10); do
+            curl -sS -H "$AUTH" "${API}/consoles/${CONSOLE_ID}/get_latest_output/" > /dev/null && break
+            sleep 2
+          done
+
+          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && echo __DEPLOY_PULL_OK__"$'\n'
+          echo "Sending git pull..."
+          curl -sS --fail -H "$AUTH" \
+            -X POST "${API}/consoles/${CONSOLE_ID}/send_input/" \
+            --data-urlencode "input=${CMD}" > /dev/null
+
+          echo "Waiting for command to finish..."
+          OK=0
+          for i in $(seq 1 30); do
+            sleep 3
+            OUT=$(curl -sS -H "$AUTH" "${API}/consoles/${CONSOLE_ID}/get_latest_output/" \
+              | python -c "import sys,json;print(json.load(sys.stdin).get('output',''))")
+            echo "$OUT"
+            if echo "$OUT" | grep -q "__DEPLOY_PULL_OK__"; then
+              OK=1
+              break
+            fi
+          done
+
+          curl -sS -H "$AUTH" -X DELETE "${API}/consoles/${CONSOLE_ID}/" > /dev/null || true
+
+          if [ "$OK" -ne 1 ]; then
+            echo "Timed out waiting for git pull."
+            exit 1
+          fi
+          echo "Pull succeeded."
+
+      - name: Reload web app
+        run: |
+          set -euo pipefail
+          curl -sS --fail \
+            -H "Authorization: Token ${PA_API_TOKEN}" \
+            -X POST \
+            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/webapps/${PA_DOMAIN}/reload/"
+          echo "Web app reloaded."

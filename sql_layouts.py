@@ -21,38 +21,43 @@ import pandas as pd
 # CONSTRAINT fk_tracks2 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE);
 
 def pieces_update(track_id, pieces):
-    cmd = f"delete from pieces where track_id = '{track_id}'"
-    sql(cmd)
+    sql("delete from pieces where track_id = :track_id", track_id=track_id)
     for (idx, piece) in enumerate(pieces):
-        cmd = f"insert into pieces (track_id, idx, piece) values ({track_id},{idx},'{piece}')"
-        sql(cmd)
+        sql(
+            "insert into pieces (track_id, idx, piece) values (:track_id, :idx, :piece)",
+            track_id=track_id, idx=idx, piece=piece,
+        )
 
 def connections_update(track_id, connections):
     p1a = connections.p1.values
     e1a = connections.e1.values
     p2a = connections.p2.values
     e2a = connections.e2.values
-    cmd = f"delete from connections where track_id = '{track_id}'"
-    sql(cmd)
-    for (p1, e1, p2, e2) in zip(p1a,e1a,p2a,e2a):
-        cmd = f"insert into connections (track_id, p1, e1, p2, e2) values ({track_id},{p1},{e1},{p2},{e2})"
-        sql(cmd)
+    sql("delete from connections where track_id = :track_id", track_id=track_id)
+    for (p1, e1, p2, e2) in zip(p1a, e1a, p2a, e2a):
+        sql(
+            "insert into connections (track_id, p1, e1, p2, e2)"
+            " values (:track_id, :p1, :e1, :p2, :e2)",
+            track_id=track_id, p1=int(p1), e1=int(e1), p2=int(p2), e2=int(e2),
+        )
 
 def pieces_read(track_id):
-    cmd = f"select piece from pieces where track_id = '{track_id}' order by idx"
-    return sql(cmd)
+    return sql(
+        "select piece from pieces where track_id = :track_id order by idx",
+        track_id=track_id,
+    )
 
 def connections_read(track_id):
-    cmd = f"select p1, e1, p2, e2 from connections where track_id = '{track_id}'"
-    return sql(cmd)
-    
+    return sql(
+        "select p1, e1, p2, e2 from connections where track_id = :track_id",
+        track_id=track_id,
+    )
+
 def pieces_read_all():
-    cmd = f"select * from pieces"
-    return sql(cmd)
+    return sql("select * from pieces")
 
 def connections_read_all():
-    cmd = f"select * from connections"
-    return sql(cmd)
+    return sql("select * from connections")
 
 # TODO: In the long run, sql should always return a data.frame with the corresponding columns, even if empty
 # But somehow this doesn't work

@@ -9,30 +9,38 @@ from helpers import sql
 # CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
 
 def tracks_create(user_id, title):
-    cmd = f"insert into tracks (user_id, title) values ('{user_id}','{title}')"
-    return sql(cmd)
+    return sql(
+        "insert into tracks (user_id, title) values (:user_id, :title)",
+        user_id=user_id, title=title,
+    )
 
 def tracks_read(user_id):
-    cmd = f"select id, title from tracks where user_id = '{user_id}'"
-    return sql(cmd)
+    return sql(
+        "select id, title from tracks where user_id = :user_id",
+        user_id=user_id,
+    )
 
 def tracks_read_title(user_id, title):
-    cmd = f"select id from tracks where user_id = '{user_id}' and title = '{title}'"
-    return sql(cmd)
+    return sql(
+        "select id from tracks where user_id = :user_id and title = :title",
+        user_id=user_id, title=title,
+    )
 
 def tracks_update_title(user_id, track_id, new_title):
-    cmd = f"update tracks set title = '{new_title}' where user_id = '{user_id}' and id = '{track_id}'"
-    return sql(cmd)
+    return sql(
+        "update tracks set title = :title where user_id = :user_id and id = :id",
+        title=new_title, user_id=user_id, id=track_id,
+    )
 
 def tracks_delete(user_id, track_id):
     sql("PRAGMA foreign_keys=ON")
-    cmd = f"delete from tracks where user_id = '{user_id}' and id = '{track_id}'"
-    return sql(cmd)
+    return sql(
+        "delete from tracks where user_id = :user_id and id = :id",
+        user_id=user_id, id=track_id,
+    )
 
 def tracks_read_id(id):
-    cmd = f"select title from tracks where id = '{id}'"
-    return sql(cmd)
+    return sql("select title from tracks where id = :id", id=id)
 
 def tracks_read_all():
-    cmd = f"select * from tracks"
-    return sql(cmd)
+    return sql("select * from tracks")
