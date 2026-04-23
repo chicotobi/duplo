@@ -27,17 +27,25 @@ jobs:
             | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
           echo "Console id: $CONSOLE_ID"
 
-          # Initialise the console (send_input only works once it's running).
-          for i in $(seq 1 10); do
-            curl -sS -H "$AUTH" "${API}/consoles/${CONSOLE_ID}/get_latest_output/" > /dev/null && break
-            sleep 2
-          done
-
           CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && echo __DEPLOY_PULL_OK__"$'\n'
-          echo "Sending git pull..."
-          curl -sS --fail -H "$AUTH" \
-            -X POST "${API}/consoles/${CONSOLE_ID}/send_input/" \
-            --data-urlencode "input=${CMD}" > /dev/null
+          echo "Waiting for console to be ready and sending git pull..."
+          SENT=0
+          for i in $(seq 1 30); do
+            HTTP=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" -H "$AUTH" \
+              -X POST "${API}/consoles/${CONSOLE_ID}/send_input/" \
+              --data-urlencode "input=${CMD}")
+            if [ "$HTTP" = "200" ]; then
+              SENT=1
+              break
+            fi
+            echo "send_input HTTP $HTTP, retrying ($i/30)..."
+            sleep 3
+          done
+          if [ "$SENT" -ne 1 ]; then
+            echo "Console never became ready."
+            curl -sS -H "$AUTH" -X DELETE "${API}/consoles/${CONSOLE_ID}/" > /dev/null || true
+            exit 1
+          fi
 
           echo "Waiting for command to finish..."
           OK=0
