@@ -8,71 +8,33 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      PA_USERNAME: ${{ secrets.PA_USERNAME }}
-      PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
-      PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
-      PA_PROJECT_DIR: ${{ secrets.PA_PROJECT_DIR }}
     steps:
-      - name: Git pull on PythonAnywhere
-        run: |
-          set -euo pipefail
-          API="https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}"
-          AUTH="Authorization: Token ${PA_API_TOKEN}"
-
-          echo "Creating bash console..."
-          CONSOLE_ID=$(curl -sS --fail -H "$AUTH" \
-            -X POST "${API}/consoles/" \
-            -d "executable=bash" \
-            | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
-          echo "Console id: $CONSOLE_ID"
-
-          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && echo __DEPLOY_PULL_OK__"$'\n'
-          echo "Waiting for console to be ready and sending git pull..."
-          SENT=0
-          for i in $(seq 1 30); do
-            HTTP=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" -H "$AUTH" \
-              -X POST "${API}/consoles/${CONSOLE_ID}/send_input/" \
-              --data-urlencode "input=${CMD}")
-            if [ "$HTTP" = "200" ]; then
-              SENT=1
-              break
-            fi
-            echo "send_input HTTP $HTTP, retrying ($i/30)..."
-            sleep 3
-          done
-          if [ "$SENT" -ne 1 ]; then
-            echo "Console never became ready."
-            curl -sS -H "$AUTH" -X DELETE "${API}/consoles/${CONSOLE_ID}/" > /dev/null || true
-            exit 1
-          fi
-
-          echo "Waiting for command to finish..."
-          OK=0
-          for i in $(seq 1 30); do
-            sleep 3
-            OUT=$(curl -sS -H "$AUTH" "${API}/consoles/${CONSOLE_ID}/get_latest_output/" \
-              | python -c "import sys,json;print(json.load(sys.stdin).get('output',''))")
-            echo "$OUT"
-            if echo "$OUT" | grep -q "__DEPLOY_PULL_OK__"; then
-              OK=1
-              break
-            fi
-          done
-
-          curl -sS -H "$AUTH" -X DELETE "${API}/consoles/${CONSOLE_ID}/" > /dev/null || true
-
-          if [ "$OK" -ne 1 ]; then
-            echo "Timed out waiting for git pull."
-            exit 1
-          fi
-          echo "Pull succeeded."
+      - name: Pull on PythonAnywhere via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ssh.pythonanywhere.com
+          username: ${{ secrets.PA_USERNAME }}
+          key: ${{ secrets.PA_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.PA_PROJECT_DIR }}"
+            git pull --ff-only
+            # Uncomment if you ever add new dependencies:
+            # pip install --user -r requirements.txt
 
       - name: Reload web app
+        env:
+          PA_USERNAME: ${{ secrets.PA_USERNAME }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          PA_DOMAIN: ${{ secrets.PA_DOMAIN }}
         run: |
           set -euo pipefail
+          # Strip any whitespace/newlines that may have been pasted into secrets.
+          USER_CLEAN=$(printf '%s' "$PA_USERNAME" | tr -d '[:space:]')
+          DOMAIN_CLEAN=$(printf '%s' "$PA_DOMAIN" | tr -d '[:space:]')
+          URL="https://www.pythonanywhere.com/api/v0/user/${USER_CLEAN}/webapps/${DOMAIN_CLEAN}/reload/"
+          echo "Reloading: ${URL}"
           curl -sS --fail \
             -H "Authorization: Token ${PA_API_TOKEN}" \
-            -X POST \
-            "https://www.pythonanywhere.com/api/v0/user/${PA_USERNAME}/webapps/${PA_DOMAIN}/reload/"
+            -X POST "${URL}"
           echo "Web app reloaded."
