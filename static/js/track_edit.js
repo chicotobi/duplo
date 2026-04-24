@@ -12,6 +12,7 @@
     const ctx = canvas.getContext('2d');
 
     let ghostName = null;
+    let highlightLast = false;
 
     function resizeCanvas() {
         const nav = document.querySelector('nav');
@@ -24,9 +25,23 @@
     resizeCanvas();
     window.addEventListener('resize', () => { resizeCanvas(); draw(); }, false);
 
+    const VIEW_KEY = 'duplo.editorView';
     let scale = 1;
     let posX = 0;
     let posY = 0;
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null');
+        if (saved && typeof saved.scale === 'number') {
+            scale = saved.scale;
+            posX = saved.posX;
+            posY = saved.posY;
+        }
+    } catch (_) { /* ignore */ }
+    const saveView = () => {
+        try {
+            sessionStorage.setItem(VIEW_KEY, JSON.stringify({ scale, posX, posY }));
+        } catch (_) { /* ignore */ }
+    };
     let startDistance = 0;
     let startScale = 1;
     let startX = 0;
@@ -409,6 +424,24 @@
             drawCursorMarker(cursor);
         }
 
+        if (highlightLast && pieces.length > 0) {
+            const last = pieces[pieces.length - 1];
+            if (last && last.path && last.path.length) {
+                ctx.save();
+                ctx.lineWidth = 3 / scale;
+                ctx.strokeStyle = '#e53935';
+                ctx.beginPath();
+                for (let i = 0; i < last.path.length; i++) {
+                    const p = last.path[i];
+                    if (i === 0) ctx.moveTo(wx(p.x), wy(p.y));
+                    else ctx.lineTo(wx(p.x), wy(p.y));
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
         if (trainPath) drawTrain(trainS);
 
         ctx.restore();
@@ -469,6 +502,7 @@
 
     const handleTouchEnd = (evt) => {
         evt.preventDefault();
+        if (isDragging) saveView();
         isDragging = false;
         const now = new Date().getTime();
         if (now - lastTouchEnd <= 300) {
@@ -493,6 +527,7 @@
     };
 
     const handleMouseUp = () => {
+        if (isDragging) saveView();
         isDragging = false;
     };
 
@@ -506,6 +541,7 @@
             posX -= (mouseX - posX) * (delta - 1);
             posY -= (mouseY - posY) * (delta - 1);
             scale = newScale;
+            saveView();
             draw();
         }
     };
@@ -514,6 +550,7 @@
         scale = 1;
         posX = 0;
         posY = 0;
+        saveView();
         draw();
     };
 
@@ -547,6 +584,26 @@
         tile.addEventListener('focus', show);
         tile.addEventListener('blur', hide);
     });
+
+    const rotateBtn = document.querySelector('button[name="rotate"]');
+    if (rotateBtn) {
+        const showRot = () => { highlightLast = true; draw(); };
+        const hideRot = () => { highlightLast = false; draw(); };
+        rotateBtn.addEventListener('mouseenter', showRot);
+        rotateBtn.addEventListener('mouseleave', hideRot);
+        rotateBtn.addEventListener('focus', showRot);
+        rotateBtn.addEventListener('blur', hideRot);
+    }
+
+    const deleteBtn = document.querySelector('button[name="delete"]');
+    if (deleteBtn) {
+        const showDel = () => { highlightLast = true; draw(); };
+        const hideDel = () => { highlightLast = false; draw(); };
+        deleteBtn.addEventListener('mouseenter', showDel);
+        deleteBtn.addEventListener('mouseleave', hideDel);
+        deleteBtn.addEventListener('focus', showDel);
+        deleteBtn.addEventListener('blur', hideDel);
+    }
 
     const submitByName = (name) => {
         const btn = document.querySelector(`button[name="${name}"]`);

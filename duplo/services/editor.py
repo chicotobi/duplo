@@ -25,8 +25,8 @@ from .thumbnails import generate_thumbnail
 
 _GHOST_SPECS = [
     ("straight", "straight", 0),
-    ("right",    "curve",    0),
-    ("left",     "curve",    1),
+    ("left",     "curve",    0),
+    ("right",    "curve",    1),
     ("switch",   "switch",   0),
     ("crossing", "crossing", 0),
 ]
