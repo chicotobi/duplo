@@ -1078,6 +1078,22 @@
     });
     document.getElementById('saveBtn').addEventListener('click', () => action('save'));
 
+    // ====================================================== title rename
+    document.getElementById('titlePill').addEventListener('click', () => {
+        const cur = document.getElementById('titleText').textContent;
+        const n = prompt('Rename track:', cur);
+        if (!n || n === cur) return;
+        if (!/^[A-Za-z0-9 ()]+$/.test(n)) { alert('Letters, numbers, spaces and parentheses only.'); return; }
+        fetch(ACTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ op: 'rename', title: n }),
+        }).then(r => r.json()).then(json => {
+            if (json.ok) document.getElementById('titleText').textContent = json.title;
+            else alert(json.error || 'Rename failed');
+        });
+    });
+
     // ====================================================== keyboard
     document.addEventListener('keydown', (ev) => {
         if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;

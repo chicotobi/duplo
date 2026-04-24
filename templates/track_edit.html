@@ -10,7 +10,7 @@
     <canvas id="drawingCanvas"></canvas>
 
     <div class="status-strip">
-        <span class="status-pill status-title">&#128646; {{ title }}</span>
+        <span class="status-pill status-title" id="titlePill" title="Click to rename">&#128646; <span id="titleText">{{ title }}</span></span>
         <span class="status-pill status-badge {% if view_model.is_closed %}closed{% endif %}" id="closedBadge">
             {% if view_model.is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
         </span>

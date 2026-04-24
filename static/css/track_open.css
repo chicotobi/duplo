@@ -90,10 +90,11 @@
     all: unset;
     cursor: pointer;
     font-size: 0.85em;
-    color: #999;
+    color: #bbb;
     padding: 2px;
     border-radius: 4px;
     transition: color 0.15s;
+    flex-shrink: 0;
 }
 
 .rename-form button:hover {
@@ -131,31 +132,26 @@
     border: 2px dashed #aaa;
     border-radius: 8px;
     background: #fafafa;
-    padding: 16px;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100%;
-}
-
-.new-card .plus {
-    font-size: 3em;
-    line-height: 1;
-    color: #888;
-    margin-bottom: 8px;
-}
-
-.new-card form {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
     align-items: stretch;
 }
 
-.new-card input {
-    text-align: center;
+.plus-btn {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    font-size: 4em;
+    color: #999;
+    transition: color 0.15s, background 0.15s;
+}
+
+.plus-btn:hover {
+    color: #555;
+    background: #f0f0f0;
+    border-radius: 6px;
 }
 
 .empty-msg {

@@ -31,13 +31,15 @@ bp = Blueprint("tracks", __name__)
 @bp.route("/track_create", methods=["POST"])
 @login_required
 def track_create():
-    if not request.form.get("title"):
-        return error("Title missing")
-
     user_id = session["user_id"]
-    title = request.form.get("title")
-    if len(tracks_read_title(user_id=user_id, title=title)) > 0:
-        return error("Title already taken")
+    title = request.form.get("title") or "New track"
+
+    # Deduplicate: append (2), (3), etc. if title exists
+    base = title
+    n = 1
+    while len(tracks_read_title(user_id=user_id, title=title)) > 0:
+        n += 1
+        title = f"{base} ({n})"
 
     tracks_create(user_id, title)
     track_ids = tracks_read_title(user_id, title)
@@ -199,6 +201,17 @@ def track_edit_action():
             editor.save()
             editor_storage.clear(user_id, track_id)
             return jsonify({"ok": True, "saved": True})
+        elif op == "rename":
+            import re
+            new_title = (payload.get("title") or "").strip()
+            if not new_title or not re.match(r'^[A-Za-z0-9 ()]+$', new_title):
+                return _json_error("Invalid title")
+            existing = tracks_read_title(user_id, new_title)
+            if existing and str(existing[0]["id"]) != str(track_id):
+                return _json_error("Title already taken")
+            tracks_update_title(user_id, track_id, new_title)
+            session["track_title"] = new_title
+            return jsonify({"ok": True, "title": new_title})
         else:
             return _json_error(f"unknown op: {op}")
     except (KeyError, ValueError, TypeError) as e:

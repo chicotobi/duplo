@@ -58,6 +58,12 @@ body { overflow: hidden; }
 .status-title {
     font-size: 1.05em;
     color: #1a1a1a;
+    cursor: pointer;
+}
+
+.status-title:hover {
+    background: rgba(255, 255, 255, 1);
+    text-decoration: underline;
 }
 
 .status-badge {

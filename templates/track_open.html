@@ -6,15 +6,10 @@
 
 {% block main %}
 <div class="track-grid">
-    <div class="new-card">
-        <div class="plus">+</div>
-        <form action="/track_create" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input class="form-control form-control-sm" type="text" name="title"
-                placeholder="New track name" pattern="[A-Za-z0-9]+" autocomplete="off" required>
-            <button class="btn btn-primary btn-sm" type="submit">Create</button>
-        </form>
-    </div>
+    <form action="/track_create" method="post" class="new-card">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="plus-btn">+</button>
+    </form>
 
     {% for track in tracks %}
     <div class="track-card">
@@ -40,8 +35,8 @@
         <div class="title-row">
             <span class="title">{{ track.title }}</span>
             <form action="/track_rename" method="post" class="rename-form"
-                onsubmit="var n=prompt('New name for &quot;{{ track.title|e }}&quot;:','{{ track.title|e }}');
-                         if(!n||!/^[A-Za-z0-9]+$/.test(n)){alert('Invalid name');return false;}
+                onsubmit="var n=prompt('Rename track:','{{ track.title|e }}');
+                         if(!n||!/^[A-Za-z0-9 ()]+$/.test(n)){if(n!==null)alert('Letters, numbers, spaces and parentheses only.');return false;}
                          this.new_title.value=n;return true;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="track_id" value="{{ track.id }}">
