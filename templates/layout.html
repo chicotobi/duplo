@@ -90,18 +90,7 @@
                 {% if session["user_id"] %}
                 <ul class="navbar-nav me-auto mt-2">
                     <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="trackDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            Tracks
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="trackDropdown">
-                            <a class="dropdown-item" href="/track_create">Create</a>
-                            <a class="dropdown-item" href="/track_open">Open</a>
-                            <a class="dropdown-item" href="/track_rename">Rename</a>
-                            <a class="dropdown-item" href="/track_delete">Delete</a>
-                        </div>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="/track_open">Tracks</a></li>
                     <li class="nav-item"><a class="nav-link" href="/library_set">Library</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="trackDropdown" role="button"

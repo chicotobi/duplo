@@ -34,12 +34,9 @@ def debug():
     else:
         return render_template('error.html', msg = "Debug only for admin")
 
-@app.route("/track_create", methods=["GET", "POST"])
+@app.route("/track_create", methods=["POST"])
 @login_required
-def track_create():    
-    if request.method == "GET":
-        return render_template("track_create.html")
-    
+def track_create():
     # Input check
     if not request.form.get("title"):
         return error("Title missing")
@@ -91,15 +88,11 @@ def track_open():
 
     return redirect("/track_edit")
 
-@app.route("/track_rename", methods=["GET", "POST"])
+@app.route("/track_rename", methods=["POST"])
 @login_required
-def track_rename():    
+def track_rename():
     user_id = session['user_id']
-    if request.method == "GET":
-        # Get available tracks for this user
-        tracks = tracks_read(user_id)
-        return render_template("track_rename.html", tracks = tracks)
-    
+
     # Input check
     if not request.form.get("track_id"):
         return error("Track not selected")
@@ -110,29 +103,25 @@ def track_rename():
     tracks = tracks_read_title(user_id, new_title)
     if len(tracks) > 0:
         return error("Title already taken")
-    
+
     tracks_update_title(user_id, track_id, new_title)
 
-    return redirect("/")
+    return redirect("/track_open")
 
-@app.route("/track_delete", methods=["GET", "POST"])
+@app.route("/track_delete", methods=["POST"])
 @login_required
-def track_delete():    
+def track_delete():
     user_id = session['user_id']
-    if request.method == "GET":
-        # Get available tracks for this user
-        tracks = tracks_read(user_id)
-        return render_template("track_delete.html", tracks = tracks)
-    
+
     # Input check
     if not request.form.get("track_id"):
         return error("Track not selected")
     track_id = request.form.get("track_id")
-    
+
     tracks_delete(user_id, track_id)
     delete_thumbnail(track_id)
 
-    return redirect("/")
+    return redirect("/track_open")
 
 @app.route('/track_edit', methods=['GET', 'POST'])
 @login_required
