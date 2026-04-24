@@ -53,7 +53,7 @@ jobs:
           fi
 
           MARK="__DEPLOY_$(date +%s%N)__"
-          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && python3 -m pip install --user -r requirements.txt && python3 -m alembic upgrade head && echo ${MARK}_OK || echo ${MARK}_FAIL
+          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && /home/${USER_CLEAN}/.virtualenvs/myvirtualenv/bin/pip install -r requirements.txt && /home/${USER_CLEAN}/.virtualenvs/myvirtualenv/bin/python -m alembic upgrade head && echo ${MARK}_OK || echo ${MARK}_FAIL
           "
           echo "Sending git pull + migrations..."
           curl -sS --fail -H "$AUTH" \
