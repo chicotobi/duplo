@@ -224,8 +224,35 @@ def _segments_intersect(a1, a2, b1, b2):
     return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
 
 
+def _shrink_polygon(poly, margin=0.3):
+    """Shrink *poly* toward its centroid by *margin* units.
+
+    This prevents false-positive overlap for pieces that merely share an
+    edge (the normal case for connected track pieces).
+    """
+    n = len(poly)
+    cx = sum(p[0] for p in poly) / n
+    cy = sum(p[1] for p in poly) / n
+    result = []
+    for px, py in poly:
+        dx, dy = px - cx, py - cy
+        d = (dx * dx + dy * dy) ** 0.5
+        if d < 1e-9:
+            result.append((px, py))
+        else:
+            factor = max(0, (d - margin)) / d
+            result.append((cx + dx * factor, cy + dy * factor))
+    return result
+
+
 def polygons_overlap(poly_a, poly_b):
-    """Return ``True`` if two simple polygons share interior area."""
+    """Return ``True`` if two simple polygons share interior area.
+
+    Polygons are shrunk slightly so that pieces sharing an edge (connected
+    pieces) are *not* reported as overlapping.
+    """
+    poly_a = _shrink_polygon(poly_a)
+    poly_b = _shrink_polygon(poly_b)
     na, nb = len(poly_a), len(poly_b)
     for i in range(na):
         a1, a2 = poly_a[i], poly_a[(i + 1) % na]

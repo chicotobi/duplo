@@ -926,10 +926,72 @@
 
     // ====================================================== palette interactions
     function paletteCenterSpawn(type) {
-        // Spawn at the current view center.
+        // If a piece is selected and has a free ending, snap the new piece there.
+        if (selection) {
+            const sel = pieces.find(p => p.id === selection.piece_id);
+            if (sel) {
+                // Prefer the selected ending if it's free; otherwise pick the first free ending.
+                let freeIdx = -1;
+                if (selection.ending_idx != null && sel.endings[selection.ending_idx] && sel.endings[selection.ending_idx].free) {
+                    freeIdx = selection.ending_idx;
+                } else {
+                    for (let e = 0; e < sel.endings.length; e++) {
+                        if (sel.endings[e].free) { freeIdx = e; break; }
+                    }
+                }
+                if (freeIdx >= 0) {
+                    const end = sel.endings[freeIdx];
+                    const targetPair = [[end.a.x, end.a.y], [end.b.x, end.b.y]];
+                    // Try every ending of the new piece as anchor; pick the
+                    // first one that doesn't visually overlap with the source.
+                    const nEndings = ENDING_COUNT[type];
+                    let bestPose = null;
+                    for (let a = 0; a < nEndings; a++) {
+                        const pose = poseAlign(type, a, targetPair);
+                        bestPose = bestPose || pose;
+                        // Quick overlap test: check if the new polygon shares
+                        // interior area with the selected piece.
+                        const newPts = poseTransform(type, pose.x, pose.y, pose.rot).points;
+                        const selPts = sel.path.map(p => [p.x, p.y]);
+                        if (!polyOverlap(newPts, selPts)) {
+                            bestPose = pose;
+                            break;
+                        }
+                    }
+                    action('add_piece', { type, x: bestPose.x, y: bestPose.y, rot: bestPose.rot });
+                    return;
+                }
+            }
+        }
+        // Fallback: spawn at the current view center.
         const r = canvas.getBoundingClientRect();
         const world = clientToWorld(r.left + r.width/2, r.top + r.height/2);
         action('add_piece', { type, x: world.x, y: world.y, rot: 0 });
+    }
+
+    // Lightweight polygon overlap test (mirrors server-side polygons_overlap).
+    function _segsCross(a1, a2, b1, b2) {
+        const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+        const d1 = cross(b1,b2,a1), d2 = cross(b1,b2,a2);
+        const d3 = cross(a1,a2,b1), d4 = cross(a1,a2,b2);
+        return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
+    }
+    function _ptInPoly(px, py, poly) {
+        let inside = false;
+        for (let i = 0, j = poly.length-1; i < poly.length; j = i++) {
+            const [xi,yi] = poly[i], [xj,yj] = poly[j];
+            if (((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi+1e-12)+xi)) inside = !inside;
+        }
+        return inside;
+    }
+    function polyOverlap(a, b) {
+        for (let i = 0; i < a.length; i++) {
+            const a1 = a[i], a2 = a[(i+1)%a.length];
+            for (let j = 0; j < b.length; j++) {
+                if (_segsCross(a1, a2, b[j], b[(j+1)%b.length])) return true;
+            }
+        }
+        return _ptInPoly(a[0][0], a[0][1], b) || _ptInPoly(b[0][0], b[0][1], a);
     }
 
     function attachPalette() {
