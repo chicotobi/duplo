@@ -13,6 +13,15 @@
     let isClosed = !!view.is_closed;
     let snapTol = view.snap_tolerance || 6;
     let userLib = window.EDITOR_USER_LIB || {};
+
+    /** Return the piece_id of a neighbor connected to `pid`, or null. */
+    function connectedNeighbor(pid) {
+        for (const [a, b] of connections) {
+            if (a.piece_id === pid) return b.piece_id;
+            if (b.piece_id === pid) return a.piece_id;
+        }
+        return null;
+    }
     const ACTION_URL = window.EDITOR_ACTION_URL;
     const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     const PIECE_TYPES = ['straight', 'curve', 'switch', 'crossing'];
@@ -1056,8 +1065,15 @@
             action('delete_pieces', { piece_ids: [...multiSel] });
             multiSel.clear(); selection = null;
         } else if (selection) {
+            const neighbor = connectedNeighbor(selection.piece_id);
             multiSel.delete(selection.piece_id);
             action('delete_piece', { piece_id: selection.piece_id });
+            if (neighbor) {
+                selection = { piece_id: neighbor, ending_idx: null };
+                multiSel.add(neighbor);
+            } else {
+                selection = null;
+            }
         }
     });
     document.getElementById('saveBtn').addEventListener('click', () => action('save'));
@@ -1093,8 +1109,15 @@
                     action('delete_pieces', { piece_ids: [...multiSel] });
                     multiSel.clear(); selection = null;
                 } else if (selection) {
+                    const neighbor = connectedNeighbor(selection.piece_id);
                     multiSel.delete(selection.piece_id);
                     action('delete_piece', { piece_id: selection.piece_id });
+                    if (neighbor) {
+                        selection = { piece_id: neighbor, ending_idx: null };
+                        multiSel.add(neighbor);
+                    } else {
+                        selection = null;
+                    }
                 }
                 break;
             case 'Escape':
