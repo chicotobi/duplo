@@ -18,12 +18,17 @@
 
     {% for track in tracks %}
     <div class="track-card">
+        <form action="/track_delete" method="post" class="delete-corner"
+            onsubmit="return confirm('Delete &quot;{{ track.title|e }}&quot;?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="track_id" value="{{ track.id }}">
+            <button type="submit" title="Delete">&#10005;</button>
+        </form>
         <form action="/track_open" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="track_id" value="{{ track.id }}">
             <button type="submit" class="open-btn" title="Open {{ track.title }}">
                 <img class="thumb" src="{{ track.thumbnail }}" alt="{{ track.title }} thumbnail">
-                <div class="title">{{ track.title }}</div>
                 <div class="pieces">
                     <span title="Straight">&ShortUpArrow; {{ track.counts.straight }}</span>
                     <span title="Curve">&#8634; {{ track.counts.curve }}</span>
@@ -32,21 +37,16 @@
                 </div>
             </button>
         </form>
-        <div class="card-actions">
-            <form action="/track_rename" method="post"
+        <div class="title-row">
+            <span class="title">{{ track.title }}</span>
+            <form action="/track_rename" method="post" class="rename-form"
                 onsubmit="var n=prompt('New name for &quot;{{ track.title|e }}&quot;:','{{ track.title|e }}');
                          if(!n||!/^[A-Za-z0-9]+$/.test(n)){alert('Invalid name');return false;}
                          this.new_title.value=n;return true;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="track_id" value="{{ track.id }}">
                 <input type="hidden" name="new_title" value="">
-                <button type="submit" title="Rename">&#9998; Rename</button>
-            </form>
-            <form action="/track_delete" method="post"
-                onsubmit="return confirm('Delete &quot;{{ track.title|e }}&quot;?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="track_id" value="{{ track.id }}">
-                <button type="submit" class="delete-btn" title="Delete">&#128465; Delete</button>
+                <button type="submit" title="Rename">&#9998;</button>
             </form>
         </div>
     </div>

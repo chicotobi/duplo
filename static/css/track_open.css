@@ -1,8 +1,15 @@
 .track-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
     margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+    .track-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+    }
 }
 
 .track-card {
@@ -10,13 +17,15 @@
     border: 1px solid #ccc;
     border-radius: 8px;
     background: #fff;
-    padding: 8px;
+    padding: 6px;
     text-align: center;
     transition: box-shadow 0.15s ease, transform 0.15s ease;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     font-family: inherit;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .track-card:hover {
@@ -60,30 +69,62 @@
     margin: 0 3px;
 }
 
-.card-actions {
-    margin-top: 6px;
+/* Title row: name + rename icon */
+.title-row {
     display: flex;
-    gap: 4px;
+    align-items: center;
     justify-content: center;
+    gap: 4px;
+    margin-top: 6px;
+    min-width: 0;
 }
 
-.card-actions button {
-    font-size: 0.8em;
-    padding: 2px 8px;
-    border: 1px solid #ccc;
-    background: #f8f8f8;
-    border-radius: 4px;
+.title-row .title {
+    font-weight: bold;
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rename-form button {
+    all: unset;
     cursor: pointer;
+    font-size: 0.85em;
+    color: #999;
+    padding: 2px;
+    border-radius: 4px;
+    transition: color 0.15s;
 }
 
-.card-actions button:hover {
-    background: #eee;
+.rename-form button:hover {
+    color: #333;
 }
 
-.card-actions .delete-btn:hover {
-    background: #fdd;
-    border-color: #d99;
-    color: #a00;
+/* Delete X in top-right corner */
+.delete-corner {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+}
+
+.delete-corner button {
+    all: unset;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    color: #bbb;
+    border-radius: 50%;
+    transition: color 0.15s, background 0.15s;
+}
+
+.delete-corner button:hover {
+    color: #c62828;
+    background: rgba(198, 40, 40, 0.1);
 }
 
 .new-card {

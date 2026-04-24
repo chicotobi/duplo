@@ -5,7 +5,7 @@
 }
 
 /* Prevent browser pinch-zoom on all UI; canvas handles its own zoom */
-html { touch-action: pan-x pan-y; }
+html { touch-action: pan-x pan-y; overflow-x: hidden; }
 
 .edit_buttons_top {
     flex: 1 1 18%;
