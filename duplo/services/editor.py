@@ -179,6 +179,24 @@ class LayoutEditor:
         if self.selection and self.selection["piece_id"] == piece_id:
             self.selection = None
 
+    def delete_pieces(self, piece_ids):
+        """Batch-delete several pieces at once."""
+        ids = set(int(pid) for pid in piece_ids)
+        self.pieces = [p for p in self.pieces if p["id"] not in ids]
+        if self.selection and self.selection["piece_id"] in ids:
+            self.selection = None
+
+    def move_pieces(self, moves):
+        """Batch-move several pieces. Each item: ``{piece_id, x, y, rot}``.
+
+        No snapping is attempted — this is used for group drags.
+        """
+        for m in moves:
+            p = self._piece(int(m["piece_id"]))
+            p["x"] = float(m["x"])
+            p["y"] = float(m["y"])
+            p["rot"] = int(m["rot"]) % 12
+
     def select(self, piece_id, ending_idx=None):
         # Validate.
         p = self._piece(piece_id)

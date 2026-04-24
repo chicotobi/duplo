@@ -9,6 +9,7 @@
     let pieces = view.pieces || [];
     let connections = view.connections || [];
     let selection = view.selection || null;
+    let multiSel = new Set();  // piece IDs in the group selection
     let isClosed = !!view.is_closed;
     let snapTol = view.snap_tolerance || 6;
     let userLib = window.EDITOR_USER_LIB || {};
@@ -378,6 +379,44 @@
         ctx.closePath(); ctx.stroke(); ctx.restore();
     }
 
+    function drawConnections() {
+        // Build a lookup: piece_id -> piece object.
+        const byId = {};
+        for (const p of pieces) byId[p.id] = p;
+        ctx.save();
+        for (const [a, b] of connections) {
+            const pa = byId[a.piece_id], pb = byId[b.piece_id];
+            if (!pa || !pb) continue;
+            const ea = pa.endings[a.ending_idx], eb = pb.endings[b.ending_idx];
+            if (!ea || !eb) continue;
+            // Midpoint of the connection (average of both ending midpoints).
+            const ma = midpoint([[ea.a.x, ea.a.y], [ea.b.x, ea.b.y]]);
+            const mb = midpoint([[eb.a.x, eb.a.y], [eb.b.x, eb.b.y]]);
+            const cx = (ma[0] + mb[0]) * 0.5, cy = (ma[1] + mb[1]) * 0.5;
+            // Direction perpendicular to the ending edge.
+            const dx = ea.b.x - ea.a.x, dy = ea.b.y - ea.a.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const nx = -dy / len, ny = dx / len;
+            // Draw a short bridge bar across the joint.
+            const hw = W0 * 0.55;  // half-width of the bar
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(2.5 / scale, 1);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(wx(cx - nx * hw), wy(cy - ny * hw));
+            ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
+            ctx.stroke();
+            // Inner colored line.
+            ctx.strokeStyle = 'rgba(76,175,80,0.85)';
+            ctx.lineWidth = Math.max(1.5 / scale, 0.7);
+            ctx.beginPath();
+            ctx.moveTo(wx(cx - nx * hw), wy(cy - ny * hw));
+            ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     let dragGhost = null;       // { type, pose, anchorIdx, snapTarget }
     let paletteGhost = null;    // { type, pose }
 
@@ -411,14 +450,34 @@
             drawTiesAndRails(p.centerlines || [], p.color);
         }
 
+        // Connection indicators at joined endings.
+        drawConnections();
+
+        // Free ending indicators on all pieces (subtle open-end dots).
+        for (const p of pieces) {
+            for (let e = 0; e < p.endings.length; e++) {
+                if (!p.endings[e].free) continue;
+                const m = midpoint([[p.endings[e].a.x, p.endings[e].a.y], [p.endings[e].b.x, p.endings[e].b.y]]);
+                const r = 3 / scale;
+                ctx.save();
+                ctx.fillStyle = 'rgba(255,143,0,0.5)';
+                ctx.beginPath(); ctx.arc(wx(m[0]), wy(m[1]), Math.max(r, 2/scale), 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+        }
+
         // Selection outline.
-        if (selection) {
+        if (multiSel.size > 1) {
+            for (const p of pieces) {
+                if (multiSel.has(p.id)) outlinePiece(p, '#ff8f00', 2.5);
+            }
+        } else if (selection) {
             const sel = pieces.find(p => p.id === selection.piece_id);
             if (sel) outlinePiece(sel, '#ff8f00', 3);
         }
 
-        // Ending handles for selected piece.
-        if (selection) {
+        // Ending handles for selected piece (only when single-selected).
+        if (selection && multiSel.size <= 1) {
             const sel = pieces.find(p => p.id === selection.piece_id);
             if (sel) for (let e = 0; e < sel.endings.length; e++)
                 drawEndingHandle(sel, e, sel.endings[e], selection.ending_idx === e);
@@ -468,8 +527,13 @@
             badge.innerHTML = isClosed ? '\u2714 Closed loop' : '\u26A0 Open ends';
         }
         document.getElementById('saveBtn').classList.toggle('closed', isClosed);
-        const hasSel = !!selection;
-        ['rotateCcw','rotateCw','deleteSel'].forEach(id => { document.getElementById(id).disabled = !hasSel; });
+        const hasSel = !!selection || multiSel.size > 0;
+        // Rotate only for single selection; delete works for any selection.
+        ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = !(selection && multiSel.size <= 1); });
+        document.getElementById('deleteSel').disabled = !hasSel;
+        // Prune multiSel: remove IDs for pieces that no longer exist.
+        const currentIds = new Set(pieces.map(p => p.id));
+        for (const id of [...multiSel]) { if (!currentIds.has(id)) multiSel.delete(id); }
         buildTrainPath();
         draw();
     }
@@ -563,13 +627,49 @@
         }
 
         if (hit) {
-            // Selecting + maybe entering drag.
+            const pid = hit.piece.id;
             const desiredEnding = hit.endingIdx;
-            // Send select to the server (piece + ending if applicable).
-            selection = { piece_id: hit.piece.id, ending_idx: desiredEnding };
-            ['rotateCcw','rotateCw','deleteSel'].forEach(id => { document.getElementById(id).disabled = false; });
+
+            if (ev.shiftKey) {
+                // Shift+click: toggle piece in/out of multi-selection.
+                if (multiSel.has(pid)) {
+                    multiSel.delete(pid);
+                    // If we removed the primary selection, pick another.
+                    if (selection && selection.piece_id === pid) {
+                        if (multiSel.size > 0) {
+                            const next = multiSel.values().next().value;
+                            selection = { piece_id: next, ending_idx: null };
+                            action('select', { piece_id: next, ending_idx: null });
+                        } else {
+                            selection = null;
+                            action('clear_selection');
+                        }
+                    }
+                } else {
+                    multiSel.add(pid);
+                    // Make this the primary selection.
+                    selection = { piece_id: pid, ending_idx: desiredEnding };
+                    action('select', { piece_id: pid, ending_idx: desiredEnding });
+                }
+                rec.deferCollapse = false;
+            } else if (multiSel.size > 1 && multiSel.has(pid)) {
+                // Clicking on a piece already in a group: keep the group for
+                // now so a drag moves the whole group.  If the user just
+                // clicks (no drag), we collapse to single-select on pointerup.
+                selection = { piece_id: pid, ending_idx: desiredEnding };
+                rec.deferCollapse = true;
+            } else {
+                // Normal click: single-select (replaces multi-sel).
+                multiSel.clear();
+                multiSel.add(pid);
+                selection = { piece_id: pid, ending_idx: desiredEnding };
+                action('select', { piece_id: pid, ending_idx: desiredEnding });
+                rec.deferCollapse = false;
+            }
+            const hasSel = !!selection || multiSel.size > 0;
+            ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = !(selection && multiSel.size <= 1); });
+            document.getElementById('deleteSel').disabled = !hasSel;
             draw();
-            action('select', { piece_id: hit.piece.id, ending_idx: desiredEnding });
             // Long-press → start drag (touch friendly). Mouse: drag begins on movement past slop.
             if (isCoarse) {
                 rec.longPressTimer = setTimeout(() => {
@@ -583,20 +683,42 @@
         }
     }
 
+    let multiDragOrigPoses = null; // Map<piece_id, {x,y,rot}> when group-dragging
+
     function startDrag(rec) {
         if (!rec.hit) return;
         rec.promoted = true;
         rec.dragPiece = rec.hit.piece;
         rec.dragOrigPose = { x: rec.dragPiece.x, y: rec.dragPiece.y, rot: rec.dragPiece.rot };
         rec.dragAnchorIdx = rec.hit.endingIdx; // may be null = auto
-        // initial ghost matches the current pose
-        dragGhost = { type: rec.dragPiece.type, pose: { ...rec.dragOrigPose }, anchorIdx: rec.dragAnchorIdx, snapTarget: null };
+
+        // If the dragged piece is in a multi-selection, enter group drag.
+        if (multiSel.size > 1 && multiSel.has(rec.dragPiece.id)) {
+            multiDragOrigPoses = new Map();
+            for (const p of pieces) {
+                if (multiSel.has(p.id)) {
+                    multiDragOrigPoses.set(p.id, { x: p.x, y: p.y, rot: p.rot });
+                }
+            }
+            dragGhost = null; // no single ghost for group drag
+        } else {
+            multiDragOrigPoses = null;
+            // initial ghost matches the current pose
+            dragGhost = { type: rec.dragPiece.type, pose: { ...rec.dragOrigPose }, anchorIdx: rec.dragAnchorIdx, snapTarget: null };
+        }
         draw();
     }
 
     function cancelDrag(rec) {
         if (rec.dragPiece) {
-            // Restore ghost off; original pose is unchanged in `pieces` (we only updated dragGhost).
+            // Restore group-drag pieces to their original positions.
+            if (multiDragOrigPoses) {
+                for (const p of pieces) {
+                    const orig = multiDragOrigPoses.get(p.id);
+                    if (orig) { p.x = orig.x; p.y = orig.y; p.rot = orig.rot; }
+                }
+                multiDragOrigPoses = null;
+            }
             dragGhost = null;
             draw();
         }
@@ -633,26 +755,48 @@
         if (rec.dragPiece) {
             const world = clientToWorld(ev.clientX, ev.clientY);
             const startWorld = rec.startWorld;
-            const newPose = {
-                x: rec.dragOrigPose.x + (world.x - startWorld.x),
-                y: rec.dragOrigPose.y + (world.y - startWorld.y),
-                rot: dragGhost.pose.rot, // preserve manual rotations during drag
-            };
-            // Local snap preview: tolerance bumped by screen-px slack on coarse.
-            const tol = snapTol + (isCoarse ? 14 : 6) / scale;
-            const targets = freeEndingsExcluding(rec.dragPiece.id);
-            const anchors = rec.dragAnchorIdx != null ? [rec.dragAnchorIdx] : [...Array(ENDING_COUNT[rec.dragPiece.type]).keys()];
-            let bestSnap = null, bestD = Infinity;
-            for (const a of anchors) {
-                const s = localSnap(rec.dragPiece.type, a, newPose, targets, tol);
-                if (!s) continue;
-                const dd = (s.pose.x - newPose.x)**2 + (s.pose.y - newPose.y)**2;
-                if (dd < bestD) { bestD = dd; bestSnap = { res: s, anchor: a }; }
-            }
-            if (bestSnap) {
-                dragGhost = { type: rec.dragPiece.type, pose: bestSnap.res.pose, anchorIdx: bestSnap.anchor, snapTarget: bestSnap.res.target };
+            const deltaX = world.x - startWorld.x;
+            const deltaY = world.y - startWorld.y;
+
+            if (multiDragOrigPoses) {
+                // Group drag: move all selected pieces in-place for live preview.
+                for (const p of pieces) {
+                    const orig = multiDragOrigPoses.get(p.id);
+                    if (orig) { p.x = orig.x + deltaX; p.y = orig.y + deltaY; }
+                }
+                // Recompute piece paths for rendering.
+                for (const p of pieces) {
+                    if (!multiDragOrigPoses.has(p.id)) continue;
+                    const tr = poseTransform(p.type, p.x, p.y, p.rot);
+                    p.path = tr.points.map(pt => ({ x: pt[0], y: pt[1] }));
+                    p.endings = p.endings.map((end, ei) => ({
+                        a: { x: tr.endings[ei][0][0], y: tr.endings[ei][0][1] },
+                        b: { x: tr.endings[ei][1][0], y: tr.endings[ei][1][1] },
+                        free: end.free,
+                    }));
+                }
             } else {
-                dragGhost = { type: rec.dragPiece.type, pose: newPose, anchorIdx: rec.dragAnchorIdx, snapTarget: null };
+                // Single-piece drag with snap preview.
+                const newPose = {
+                    x: rec.dragOrigPose.x + deltaX,
+                    y: rec.dragOrigPose.y + deltaY,
+                    rot: dragGhost.pose.rot, // preserve manual rotations during drag
+                };
+                const tol = snapTol + (isCoarse ? 14 : 6) / scale;
+                const targets = freeEndingsExcluding(rec.dragPiece.id);
+                const anchors = rec.dragAnchorIdx != null ? [rec.dragAnchorIdx] : [...Array(ENDING_COUNT[rec.dragPiece.type]).keys()];
+                let bestSnap = null, bestD = Infinity;
+                for (const a of anchors) {
+                    const s = localSnap(rec.dragPiece.type, a, newPose, targets, tol);
+                    if (!s) continue;
+                    const dd = (s.pose.x - newPose.x)**2 + (s.pose.y - newPose.y)**2;
+                    if (dd < bestD) { bestD = dd; bestSnap = { res: s, anchor: a }; }
+                }
+                if (bestSnap) {
+                    dragGhost = { type: rec.dragPiece.type, pose: bestSnap.res.pose, anchorIdx: bestSnap.anchor, snapTarget: bestSnap.res.target };
+                } else {
+                    dragGhost = { type: rec.dragPiece.type, pose: newPose, anchorIdx: rec.dragAnchorIdx, snapTarget: null };
+                }
             }
             draw();
         }
@@ -667,6 +811,19 @@
 
         if (activePointers.size > 0) return; // still in multi-touch; ignore lift
 
+        if (rec.dragPiece && multiDragOrigPoses) {
+            // Group drag commit: send all moved pieces to the server.
+            const moves = [];
+            for (const p of pieces) {
+                if (!multiDragOrigPoses.has(p.id)) continue;
+                moves.push({ piece_id: p.id, x: p.x, y: p.y, rot: p.rot });
+            }
+            multiDragOrigPoses = null;
+            action('move_pieces', { moves });
+            saveView();
+            return;
+        }
+
         if (rec.dragPiece && dragGhost) {
             const dropPose = dragGhost.pose;
             const anchor = dragGhost.anchorIdx;
@@ -680,13 +837,29 @@
             return;
         }
 
+        // Deferred collapse: user clicked on a group member without dragging.
+        if (rec.deferCollapse && !rec.promoted) {
+            const pid = rec.hit && rec.hit.piece ? rec.hit.piece.id : null;
+            if (pid !== null) {
+                multiSel.clear();
+                multiSel.add(pid);
+                selection = { piece_id: pid, ending_idx: rec.hit.endingIdx };
+                ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = false; });
+                document.getElementById('deleteSel').disabled = false;
+                draw();
+                action('select', { piece_id: pid, ending_idx: rec.hit.endingIdx });
+            }
+            return;
+        }
+
         const dist = Math.hypot(rec.curX - rec.startX, rec.curY - rec.startY);
         if (rec.panActive) {
             if (dist > SLOP_PX) saveView();
             else {
                 // Tap on empty canvas → clear selection.
-                if (selection) {
+                if (selection || multiSel.size > 0) {
                     selection = null;
+                    multiSel.clear();
                     ['rotateCcw','rotateCw','deleteSel'].forEach(id => { document.getElementById(id).disabled = true; });
                     draw();
                     action('clear_selection');
@@ -700,7 +873,16 @@
         activePointers.delete(ev.pointerId);
         if (!rec) return;
         if (rec.longPressTimer) clearTimeout(rec.longPressTimer);
-        if (rec.dragPiece) { dragGhost = null; draw(); }
+        if (rec.dragPiece) {
+            if (multiDragOrigPoses) {
+                for (const p of pieces) {
+                    const orig = multiDragOrigPoses.get(p.id);
+                    if (orig) { p.x = orig.x; p.y = orig.y; p.rot = orig.rot; }
+                }
+                multiDragOrigPoses = null;
+            }
+            dragGhost = null; draw();
+        }
     }
 
     // ----- pinch zoom -----
@@ -811,13 +993,19 @@
 
     // ====================================================== selection toolbar
     document.getElementById('rotateCw').addEventListener('click', () => {
-        if (selection) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
+        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
     });
     document.getElementById('rotateCcw').addEventListener('click', () => {
-        if (selection) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
+        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
     });
     document.getElementById('deleteSel').addEventListener('click', () => {
-        if (selection) action('delete_piece', { piece_id: selection.piece_id });
+        if (multiSel.size > 1) {
+            action('delete_pieces', { piece_ids: [...multiSel] });
+            multiSel.clear(); selection = null;
+        } else if (selection) {
+            multiSel.delete(selection.piece_id);
+            action('delete_piece', { piece_id: selection.piece_id });
+        }
     });
     document.getElementById('saveBtn').addEventListener('click', () => action('save'));
 
@@ -825,16 +1013,39 @@
     document.addEventListener('keydown', (ev) => {
         if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;
         if (ev.ctrlKey && ev.key.toLowerCase() === 's') { ev.preventDefault(); action('save'); return; }
-        if (!selection) return;
+        if (ev.ctrlKey && ev.key.toLowerCase() === 'a') {
+            // Select all pieces.
+            ev.preventDefault();
+            multiSel.clear();
+            for (const p of pieces) multiSel.add(p.id);
+            if (!selection && pieces.length) selection = { piece_id: pieces[0].id, ending_idx: null };
+            ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = true; });
+            document.getElementById('deleteSel').disabled = multiSel.size === 0;
+            draw();
+            return;
+        }
+        if (!selection && multiSel.size === 0) return;
         switch (ev.key) {
             case 'r': case 'R': case 'e': case 'E':
-                ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 }); break;
+                if (selection && multiSel.size <= 1) {
+                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
+                } break;
             case 'q': case 'Q':
-                ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 }); break;
+                if (selection && multiSel.size <= 1) {
+                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
+                } break;
             case 'Backspace': case 'Delete':
-                ev.preventDefault(); action('delete_piece', { piece_id: selection.piece_id }); break;
+                ev.preventDefault();
+                if (multiSel.size > 1) {
+                    action('delete_pieces', { piece_ids: [...multiSel] });
+                    multiSel.clear(); selection = null;
+                } else if (selection) {
+                    multiSel.delete(selection.piece_id);
+                    action('delete_piece', { piece_id: selection.piece_id });
+                }
+                break;
             case 'Escape':
-                ev.preventDefault(); selection = null;
+                ev.preventDefault(); selection = null; multiSel.clear();
                 ['rotateCcw','rotateCw','deleteSel'].forEach(id => { document.getElementById(id).disabled = true; });
                 draw(); action('clear_selection'); break;
         }

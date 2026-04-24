@@ -185,6 +185,10 @@ def track_edit_action():
                                 int(payload.get("delta_steps", 1)))
         elif op == "delete_piece":
             editor.delete_piece(int(payload["piece_id"]))
+        elif op == "delete_pieces":
+            editor.delete_pieces(payload["piece_ids"])
+        elif op == "move_pieces":
+            editor.move_pieces(payload["moves"])
         elif op == "select":
             ending_idx = payload.get("ending_idx")
             editor.select(int(payload["piece_id"]),
