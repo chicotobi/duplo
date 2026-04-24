@@ -43,21 +43,6 @@
             <span class="bottom-tab-label">Log out</span>
         </a>
     </nav>
-    {% else %}
-    <nav class="bottom-tabs" aria-label="Navigation">
-        <a href="/" class="bottom-tab {% if request.path == '/' %}active{% endif %}">
-            <span class="bottom-tab-icon">&#127968;</span>
-            <span class="bottom-tab-label">Home</span>
-        </a>
-        <a href="/user_register" class="bottom-tab {% if request.path == '/user_register' %}active{% endif %}">
-            <span class="bottom-tab-icon">&#9997;</span>
-            <span class="bottom-tab-label">Register</span>
-        </a>
-        <a href="/user_login" class="bottom-tab {% if request.path == '/user_login' %}active{% endif %}">
-            <span class="bottom-tab-icon">&#128274;</span>
-            <span class="bottom-tab-label">Log In</span>
-        </a>
-    </nav>
     {% endif %}
 
 </body>

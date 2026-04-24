@@ -2,7 +2,8 @@
 
 {% block main %}
 <div class="landing">
-    <a href="/"><img src="{{ url_for('static', filename='logo.png') }}" alt="Duplino" style="width:200px; margin-bottom:24px;"></a>
+    <img src="{{ url_for('static', filename='main.png') }}" alt="Train track designer" style="width:80px; margin-bottom:12px;">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Duplino" style="width:200px; margin-bottom:24px;">
     <form action="/user_login" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
@@ -14,5 +15,6 @@
     </div>
     <button class="btn btn-primary" type="submit">Log In</button>
     </form>
+    <p style="margin-top:16px; color:#555;">No account? <a href="/user_register" style="color:#2e7d32; font-weight:600;">Register</a></p>
 </div>
 {% endblock %}

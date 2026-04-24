@@ -10,9 +10,6 @@
         <h2>&#128100; {{ name }}</h2>
     </div>
 
-    <h3>&#128722; My Track Library</h3>
-    <p style="color:#555">How many pieces do you have at home?</p>
-
     <form action="/library_set" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="lib-grid">
@@ -32,8 +29,12 @@
         </div>
     </form>
 
-    <div style="margin-top:32px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
-        <a href="/user_delete" style="color:#c62828; font-weight:600;">Delete account</a>
+    <div style="margin-top:32px; display:flex; justify-content:center;">
+        <form action="/user_delete" method="post"
+              onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" style="color:#c62828; font-weight:600; background:none; border:1px solid #c62828; padding:8px 20px; border-radius:6px; cursor:pointer;">Delete account</button>
+        </form>
     </div>
 </div>
 

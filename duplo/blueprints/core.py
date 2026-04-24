@@ -1,6 +1,6 @@
 """Index/debug routes."""
 
-from flask import Blueprint, current_app, render_template, session
+from flask import Blueprint, current_app, redirect, render_template, session
 
 from ..auth import error
 from ..repositories.layouts import pieces_read_all
@@ -12,6 +12,8 @@ bp = Blueprint("core", __name__)
 
 @bp.route("/", methods=["GET", "POST"])
 def index():
+    if not session.get("user_id"):
+        return redirect("/user_login")
     debug = current_app.config["DUPLO_DEBUG"]
     if debug:
         users_debug = users_read_all()
