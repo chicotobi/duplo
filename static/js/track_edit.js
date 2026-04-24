@@ -506,14 +506,6 @@
         selection = v.selection || null;
         isClosed = !!v.is_closed;
         snapTol = v.snap_tolerance || snapTol;
-        // Update counter pills.
-        document.querySelectorAll('.counter-pill').forEach(el => {
-            const t = el.getAttribute('data-piece');
-            const c = (v.counter || {})[t] ?? 0;
-            const lib = (userLib || {})[t] ?? 0;
-            const cn = el.querySelector('.count'); if (cn) cn.textContent = c;
-            el.classList.toggle('over', c > lib);
-        });
         document.querySelectorAll('.palette-tile').forEach(el => {
             const t = el.getAttribute('data-piece');
             const c = (v.counter || {})[t] ?? 0;
@@ -993,10 +985,10 @@
 
     // ====================================================== selection toolbar
     document.getElementById('rotateCw').addEventListener('click', () => {
-        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
+        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
     });
     document.getElementById('rotateCcw').addEventListener('click', () => {
-        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
+        if (selection && multiSel.size <= 1) action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
     });
     document.getElementById('deleteSel').addEventListener('click', () => {
         if (multiSel.size > 1) {
@@ -1028,11 +1020,11 @@
         switch (ev.key) {
             case 'r': case 'R': case 'e': case 'E':
                 if (selection && multiSel.size <= 1) {
-                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
+                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
                 } break;
             case 'q': case 'Q':
                 if (selection && multiSel.size <= 1) {
-                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: -1 });
+                    ev.preventDefault(); action('rotate_piece', { piece_id: selection.piece_id, delta_steps: 1 });
                 } break;
             case 'Backspace': case 'Delete':
                 ev.preventDefault();

@@ -15,16 +15,7 @@
         <span class="status-pill status-badge {% if view_model.is_closed %}closed{% endif %}" id="closedBadge">
             {% if view_model.is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
         </span>
-        <div class="counter-strip" id="counterStrip">
-            {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
-            <span class="counter-pill {% if view_model.counter[piece] > user_lib[piece] %}over{% endif %}"
-                  data-piece="{{ piece }}">
-                <img src="{{ url_for('static', filename='pieces_svg/' + piece + '.svg') }}" alt="{{ piece }}">
-                <span class="count">{{ view_model.counter[piece] }}</span> / <span class="lib">{{ user_lib[piece] }}</span>
-            </span>
-            {% endfor %}
-            <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
-        </div>
+        <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
     </div>
 
     <div class="toolbar" id="toolbar">

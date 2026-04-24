@@ -70,40 +70,6 @@ body { overflow: hidden; }
     color: #1b5e20;
 }
 
-.counter-strip {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-left: auto;
-}
-
-.counter-pill {
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: 999px;
-    padding: 4px 10px 4px 4px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 600;
-    color: #333;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.9em;
-}
-
-.counter-pill.over {
-    background: #ffcdd2;
-    color: #b71c1c;
-}
-
-.counter-pill img {
-    width: 24px;
-    height: 24px;
-    background: #f5f5f5;
-    border-radius: 50%;
-    padding: 2px;
-}
-
 .icon-btn {
     background: rgba(255, 255, 255, 0.92);
     border: none;
