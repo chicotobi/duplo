@@ -41,7 +41,8 @@
 <script>
     window.EDITOR_DATA = {{ view_model | tojson }};
     window.EDITOR_USER_LIB = {{ user_lib | tojson }};
-    window.EDITOR_ACTION_URL = "{{ url_for('tracks.track_edit_action') }}";
+    window.EDITOR_ACTION_URL = "{{ url_for('core.sandbox_action') if is_anonymous else url_for('tracks.track_edit_action') }}";
+    window.EDITOR_ANONYMOUS = {{ 'true' if is_anonymous else 'false' }};
 </script>
 <script src="{{ asset_url('js/track_edit.js') }}"></script>
 {% endblock %}

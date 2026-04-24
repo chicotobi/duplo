@@ -539,6 +539,7 @@
     }
 
     // ====================================================== JSON action helper
+    const isAnonymous = !!window.EDITOR_ANONYMOUS;
     let pendingActions = Promise.resolve();
     function action(op, args = {}) {
         const body = JSON.stringify(Object.assign({ op }, args));
@@ -547,8 +548,14 @@
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body,
         }).then(r => r.json()).then(json => {
+            if (json.login_required) {
+                if (confirm('Register a free account to save your tracks!\n\nGo to registration page?')) {
+                    window.location.href = '/user_register';
+                }
+                return json;
+            }
             if (!json.ok) { console.warn('action failed', op, json.error); return json; }
-            if (json.saved) { window.location.href = '/'; return json; }
+            if (json.saved) { window.location.href = '/track_open'; return json; }
             if (json.view) applyView(json.view);
             return json;
         }).catch(err => { console.warn('action error', op, err); }));
@@ -1080,6 +1087,7 @@
 
     // ====================================================== title rename
     document.getElementById('titlePill').addEventListener('click', () => {
+        if (isAnonymous) return;
         const cur = document.getElementById('titleText').textContent;
         const n = prompt('Rename track:', cur);
         if (!n || n === cur) return;

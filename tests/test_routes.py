@@ -11,7 +11,8 @@ def _login(client, app, user_id, name="alice"):
 
 
 def test_index_anonymous(client):
-    assert client.get("/").status_code == 302
+    """Anonymous visitors see the sandbox editor."""
+    assert client.get("/").status_code == 200
 
 
 def test_login_get(client):

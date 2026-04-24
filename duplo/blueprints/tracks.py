@@ -125,6 +125,7 @@ def track_edit():
         title=track_title,
         user_lib=user_lib,
         view_model=editor.view_model(user_lib),
+        is_anonymous=False,
     )
 
 

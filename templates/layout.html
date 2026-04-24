@@ -26,10 +26,6 @@
 
     {% if session["user_id"] %}
     <nav class="bottom-tabs" aria-label="Navigation">
-        <a href="/" class="bottom-tab {% if request.path == '/' %}active{% endif %}">
-            <span class="bottom-tab-icon">&#127968;</span>
-            <span class="bottom-tab-label">Home</span>
-        </a>
         <a href="/track_open" class="bottom-tab {% if request.path.startswith('/track') %}active{% endif %}">
             <span class="bottom-tab-icon">&#128739;</span>
             <span class="bottom-tab-label">Tracks</span>
