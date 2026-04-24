@@ -28,6 +28,7 @@ from ..repositories.layouts import (
 from .geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
+    _pose_to_align,
     ending_count,
     polygons_overlap,
     snap_pose,
@@ -172,6 +173,85 @@ class LayoutEditor:
 
     def rotate_piece(self, piece_id, delta_steps=1):
         p = self._piece(piece_id)
+
+        # Smart rotate: if the piece has exactly one connected ending,
+        # try to pivot around that connection so a free ending snaps to
+        # a nearby free target ending.
+        _, all_eds, _ = self._build()
+        conns = layouts_connections(all_eds)
+
+        # Find which of this piece's endings are connected.
+        connected = []  # (my_eidx, other_pid, other_eidx)
+        for (a, b) in conns:
+            if a[0] == piece_id:
+                connected.append((a[1], b[0], b[1]))
+            elif b[0] == piece_id:
+                connected.append((b[1], a[0], a[1]))
+
+        if len(connected) == 1 and ending_count[p["type"]] > 1:
+            my_conn_eidx, other_pid, other_eidx = connected[0]
+            # The target pair our connected ending must stay aligned to.
+            pivot_pair = all_eds[other_pid][other_eidx]
+
+            # Collect free target endings (excluding this piece).
+            free = layouts_free_endings(all_eds, conns)
+            free_targets = []
+            for (fpid, feidx) in free:
+                if fpid == piece_id:
+                    continue
+                pair = all_eds[fpid][feidx]
+                free_targets.append((fpid, feidx, pair))
+
+            # For each of our free endings, try aligning to each free target.
+            my_free = [ei for ei in range(ending_count[p["type"]])
+                       if ei != my_conn_eidx]
+            candidates = []
+            for my_eidx in my_free:
+                for (fpid, feidx, tpair) in free_targets:
+                    x, y, rot = _pose_to_align(p["type"], my_eidx, tpair)
+                    # Verify the connected ending still fits the pivot.
+                    check_eds = world_endings_for_pose(p["type"], x, y, rot)
+                    conn_ed = check_eds[my_conn_eidx]
+                    conn_mid = ((conn_ed[0][0] + conn_ed[1][0]) * 0.5,
+                                (conn_ed[0][1] + conn_ed[1][1]) * 0.5)
+                    piv_mid = ((pivot_pair[0][0] + pivot_pair[1][0]) * 0.5,
+                               (pivot_pair[0][1] + pivot_pair[1][1]) * 0.5)
+                    dist2 = (conn_mid[0] - piv_mid[0]) ** 2 + (conn_mid[1] - piv_mid[1]) ** 2
+                    if dist2 > SNAP_TOLERANCE ** 2:
+                        continue
+                    # Check no overlap with other pieces.
+                    new_poly = world_polygon(p["type"], x, y, rot)
+                    overlap = False
+                    for op in self.pieces:
+                        if op["id"] == piece_id:
+                            continue
+                        op_poly = world_polygon(op["type"], op["x"], op["y"], op["rot"])
+                        if polygons_overlap(new_poly, op_poly):
+                            overlap = True
+                            break
+                    if overlap:
+                        continue
+                    # Rotation delta from current.
+                    rd = (rot - p["rot"]) % 12
+                    candidates.append((rd, x, y, rot))
+
+            if candidates:
+                # Pick the candidate closest in the direction of delta_steps.
+                # delta_steps > 0 is CCW, < 0 is CW.
+                ds = int(delta_steps)
+                if ds > 0:
+                    # smallest positive delta
+                    candidates.sort(key=lambda c: c[0] if c[0] > 0 else 12)
+                else:
+                    # largest (most negative / most CW) delta
+                    candidates.sort(key=lambda c: -c[0] if c[0] > 0 else -12)
+                _, nx, ny, nr = candidates[0]
+                p["x"] = float(nx)
+                p["y"] = float(ny)
+                p["rot"] = int(nr) % 12
+                return
+
+        # Fallback: simple rotation.
         p["rot"] = (p["rot"] + int(delta_steps)) % 12
 
     def delete_piece(self, piece_id):
@@ -317,8 +397,10 @@ class LayoutEditor:
                 break
 
         out_pieces = []
+        seen = {pt: 0 for pt in PIECE_TYPES}
         for p, path, cls in zip(self.pieces, pathes, cls_per_piece):
-            if counter[p["type"]] > user_lib[p["type"]]:
+            seen[p["type"]] += 1
+            if seen[p["type"]] > user_lib[p["type"]]:
                 color = "red"
             elif is_closed and all_within_lib:
                 color = "green"

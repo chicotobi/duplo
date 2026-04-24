@@ -34,6 +34,9 @@ def library_set():
         request.form.get("crossing"),
     )
 
+    # Update the cached library so the editor sees the new values.
+    session["user_lib"] = users_library_read(user_id)[0]
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify(ok=True)
     return redirect("/user_info")
