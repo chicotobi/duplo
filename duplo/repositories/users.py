@@ -14,7 +14,7 @@ from ..extensions import sql
 def users_create(name, hash):
     return sql(
         "insert into users (name, hash, straight, curve, switch, crossing)"
-        " values (:name, :hash, 99, 99, 99, 99)",
+        " values (:name, :hash, 8, 12, 2, 1)",
         name=name, hash=hash,
     )
 

@@ -1,7 +1,41 @@
 {% extends "layout.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ asset_url('css/library_set.css') }}">
+{% endblock %}
+
 {% block main %}
-<p style="font-size:20px">
-    Name: {{ name }}
-</p>
+<div class="lib-page">
+    <div class="lib-header">
+        <h2>&#128100; {{ name }}</h2>
+    </div>
+
+    <h3>&#128722; My Track Library</h3>
+    <p style="color:#555">How many pieces do you have at home?</p>
+
+    <form action="/library_set" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="lib-grid">
+            {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
+            <div class="lib-card {{ piece }}">
+                <img src="{{ url_for('static', filename='pieces_svg/' + piece + '.svg') }}"
+                     alt="{{ piece }}">
+                <div class="lib-name">{{ piece|capitalize }}</div>
+                <div class="stepper">
+                    <button type="button" class="minus" onclick="step('{{ piece }}',-1)">&minus;</button>
+                    <input type="number" id="{{ piece }}" name="{{ piece }}"
+                           value="{{ user_lib[piece] }}" min="0" required>
+                    <button type="button" class="plus" onclick="step('{{ piece }}',1)">+</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+
+    <div style="margin-top:32px; display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">
+        <a href="/user_delete" style="color:#c62828; font-weight:600;">Delete account</a>
+    </div>
+</div>
+
+<script src="{{ asset_url('js/library_set.js') }}"></script>
 {% endblock %}

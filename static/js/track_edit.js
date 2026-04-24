@@ -518,7 +518,6 @@
             badge.classList.toggle('closed', isClosed);
             badge.innerHTML = isClosed ? '\u2714 Closed loop' : '\u26A0 Open ends';
         }
-        document.getElementById('saveBtn').classList.toggle('closed', isClosed);
         const hasSel = !!selection || multiSel.size > 0;
         // Rotate only for single selection; delete works for any selection.
         ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = !(selection && multiSel.size <= 1); });

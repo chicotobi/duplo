@@ -31,7 +31,8 @@ def test_protected_routes_redirect_when_anonymous(client):
 def test_authenticated_can_open_tracks(client, app, user_id):
     _login(client, app, user_id)
     assert client.get("/track_open").status_code == 200
-    assert client.get("/library_set").status_code == 200
+    assert client.get("/library_set").status_code == 302  # redirects to /user_info
+    assert client.get("/user_info").status_code == 200
 
 
 def test_register_creates_user(client, app):

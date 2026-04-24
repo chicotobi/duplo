@@ -9,9 +9,6 @@
     <!-- http://getbootstrap.com/docs/5.3/ -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-        crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="{{ asset_url('css/layout.css') }}">
     {% block head %}{% endblock %}
@@ -21,49 +18,42 @@
 </head>
 
 <body>
-    <nav class="bg-light border navbar navbar-expand-md navbar-light">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="main" width = "151" height = "20" />
-            </a>
-            <button aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler"
-                data-bs-target="#navbar" data-bs-toggle="collapse" type="button">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbar">
-                {% if session["user_id"] %}
-                <ul class="navbar-nav me-auto mt-2">
-                    <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/track_open">Tracks</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/library_set">Library</a></li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="trackDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            Account
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="trackDropdown">
-                            <a class="dropdown-item" href="/user_info">Account info</a>
-                            <a class="dropdown-item" style="color:red;" href="/user_delete">Delete account</a>
-                            <a class="dropdown-item" href="/user_logout">Log out</a>
-                        </div>
-                    </li>
-                    {% if session["user_name"] == 'tobi' %}
-                    <li class="nav-item"><a class="nav-link" href="/debug">Debug info</a></li>
-                    {% endif %}
-                </ul>
-                {% else %}
-                <ul class="navbar-nav me-auto mt-2">
-                    <li class="nav-item"><a class="nav-link" href="/user_register">Register</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/user_login">Log In</a></li>
-                </ul>
-                {% endif %}
-            </div>
+    {% if not session["user_id"] %}
+    <header class="anon-header">
+        <a href="/">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Duplino" width="151" height="20" />
+        </a>
+        <div class="anon-links">
+            <a href="/user_register">Register</a>
+            <a href="/user_login">Log In</a>
         </div>
-    </nav>
+    </header>
+    {% endif %}
 
-    <main class="container py-5 text-center">
+    <main class="container pb-3 text-center">
         {% block main %}{% endblock %}
     </main>
+
+    {% if session["user_id"] %}
+    <nav class="bottom-tabs" aria-label="Navigation">
+        <a href="/" class="bottom-tab {% if request.path == '/' %}active{% endif %}">
+            <span class="bottom-tab-icon">&#127968;</span>
+            <span class="bottom-tab-label">Home</span>
+        </a>
+        <a href="/track_open" class="bottom-tab {% if request.path.startswith('/track') %}active{% endif %}">
+            <span class="bottom-tab-icon">&#128739;</span>
+            <span class="bottom-tab-label">Tracks</span>
+        </a>
+        <a href="/user_info" class="bottom-tab {% if request.path == '/user_info' %}active{% endif %}">
+            <span class="bottom-tab-icon">&#128100;</span>
+            <span class="bottom-tab-label">Account</span>
+        </a>
+        <a href="/user_logout" class="bottom-tab">
+            <span class="bottom-tab-icon">&#128682;</span>
+            <span class="bottom-tab-label">Log out</span>
+        </a>
+    </nav>
+    {% endif %}
 
 </body>
 

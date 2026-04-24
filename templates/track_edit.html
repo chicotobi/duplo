@@ -15,11 +15,13 @@
         <span class="status-pill status-badge {% if view_model.is_closed %}closed{% endif %}" id="closedBadge">
             {% if view_model.is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
         </span>
+        <span style="flex:1"></span>
+        <button type="button" class="icon-btn" id="saveBtn" title="Save (Ctrl+S)">&#128190;</button>
         <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
     </div>
 
-    <div class="toolbar" id="toolbar">
-        <div class="tb-group" id="palette">
+    <div class="bottom-bar">
+        <div class="tb-cluster" id="palette">
             {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
             <button type="button" class="piece-tile palette-tile" data-piece="{{ piece }}"
                     title="Drag onto canvas, or click to spawn ({{ piece }})">
@@ -29,18 +31,11 @@
             {% endfor %}
         </div>
 
-        <div class="tb-divider"></div>
-
-        <div class="tb-group" id="selectionTools">
+        <div class="tb-cluster" id="selectionTools">
             <button type="button" class="action-btn rotate" id="rotateCcw" title="Rotate CCW (Q)" disabled>&#8634;</button>
             <button type="button" class="action-btn rotate" id="rotateCw"  title="Rotate CW (R / E)" disabled>&#8635;</button>
             <button type="button" class="action-btn delete" id="deleteSel" title="Delete (Backspace)" disabled>&#10006;</button>
         </div>
-
-        <div class="tb-divider"></div>
-
-        <button type="button" class="save-pill {% if view_model.is_closed %}closed{% endif %}" id="saveBtn"
-                title="Save (Ctrl+S)">&#128190; Save</button>
     </div>
 </div>
 

@@ -54,3 +54,90 @@ td {
 th {
     background-color: #f2f2f2;
 }
+
+/* ===== Anonymous header (logged-out) ===== */
+.anon-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.anon-links {
+    display: flex;
+    gap: 16px;
+}
+
+.anon-links a {
+    text-decoration: none;
+    font-weight: 600;
+    color: #2e7d32;
+    padding: 6px 14px;
+    border-radius: 999px;
+    transition: background 0.15s;
+}
+
+.anon-links a:hover {
+    background: rgba(46, 125, 50, 0.1);
+}
+
+/* ===== Bottom tab bar (logged-in, all screen sizes) ===== */
+.bottom-tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background: #fff;
+    border-top: 1px solid #dee2e6;
+    padding: 4px 0 env(safe-area-inset-bottom, 4px);
+    z-index: 1050;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Add bottom padding so content isn't hidden behind the bar */
+body:has(.bottom-tabs) { padding-bottom: 64px; }
+
+/* Hide the tab bar on the editor page */
+body:has(.edit-stage) .bottom-tabs {
+    display: none;
+}
+body:has(.edit-stage) {
+    padding-bottom: 0;
+}
+
+.bottom-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #757575;
+    font-size: 0.7em;
+    padding: 4px 8px 2px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-tab-icon {
+    font-size: 1.6em;
+    line-height: 1.2;
+}
+
+.bottom-tab-label {
+    margin-top: 1px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.bottom-tab.active {
+    color: #2e7d32;
+}
+
+.bottom-tab:hover {
+    color: #2e7d32;
+    background: rgba(46, 125, 50, 0.08);
+}

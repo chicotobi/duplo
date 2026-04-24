@@ -8,6 +8,7 @@ from ..extensions import limiter
 from ..repositories.users import (
     users_create,
     users_delete,
+    users_library_read,
     users_read,
     users_read_by_id,
     users_read_hash,
@@ -20,7 +21,8 @@ bp = Blueprint("users", __name__)
 @login_required
 def user_info():
     name = users_read_by_id(id=session["user_id"])[0]["name"]
-    return render_template("user_info.html", name=name)
+    user_lib = users_library_read(session["user_id"])[0]
+    return render_template("user_info.html", name=name, user_lib=user_lib)
 
 
 @bp.route("/user_register", methods=["GET", "POST"])

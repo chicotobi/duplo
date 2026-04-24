@@ -1,6 +1,6 @@
 """Library (piece inventory) routes."""
 
-from flask import Blueprint, redirect, render_template, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from ..auth import error, login_required
 from ..repositories.users import users_library_read, users_library_set
@@ -15,7 +15,7 @@ def library_set():
     user_lib = users_library_read(session["user_id"])[0]
 
     if request.method == "GET":
-        return render_template("library_set.html", user_lib=user_lib)
+        return redirect("/user_info")
 
     if not request.form.get("straight"):
         return error("Straight not set")
@@ -33,4 +33,7 @@ def library_set():
         request.form.get("switch"),
         request.form.get("crossing"),
     )
-    return redirect("/")
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(ok=True)
+    return redirect("/user_info")

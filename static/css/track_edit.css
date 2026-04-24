@@ -4,7 +4,7 @@ body { overflow: hidden; }
 
 .edit-stage {
     position: fixed;
-    inset: var(--nav-h, 56px) 0 0 0;   /* sit below the navbar */
+    inset: 0;
     overflow: hidden;
 }
 
@@ -89,42 +89,35 @@ body { overflow: hidden; }
 .icon-btn:hover { transform: scale(1.07); background: #fff; }
 .icon-btn:active { transform: scale(0.95); }
 
-/* Bottom floating toolbar */
-.toolbar {
+/* Bottom floating toolbar — two separate clusters */
+.bottom-bar {
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     bottom: 14px;
+    left: 12px;
+    right: 12px;
     z-index: 5;
     display: flex;
-    gap: 10px;
-    align-items: stretch;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
-    padding: 10px 12px;
-    border-radius: 18px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-    max-width: calc(100vw - 24px);
-    flex-wrap: wrap;
-    margin: 0;
+    justify-content: center;
+    gap: 12px;
+    pointer-events: none;
 }
 
-.tb-group {
+.tb-cluster {
     display: flex;
     gap: 6px;
     align-items: center;
-}
-
-.tb-divider {
-    width: 1px;
-    background: rgba(0, 0, 0, 0.1);
-    margin: 0 2px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    padding: 8px 10px;
+    border-radius: 18px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    pointer-events: auto;
 }
 
 .piece-tile {
     position: relative;
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
     border-radius: 14px;
     border: 2px solid transparent;
     background: #f5f5f5;
@@ -169,8 +162,8 @@ body { overflow: hidden; }
 .piece-tile.over .badge { background: #c62828; color: #fff; }
 
 .action-btn {
-    width: 56px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
     border-radius: 14px;
     border: none;
     background: #eceff1;
@@ -187,24 +180,4 @@ body { overflow: hidden; }
 .action-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
 .action-btn:active { transform: translateY(0); }
 
-.save-pill {
-    border: none;
-    background: linear-gradient(180deg, #66bb6a 0%, #43a047 100%);
-    color: #fff;
-    font-weight: 700;
-    padding: 0 22px;
-    border-radius: 14px;
-    cursor: pointer;
-    height: 64px;
-    font-size: 1em;
-    box-shadow: 0 3px 0 #2e7d32;
-    transition: transform 0.1s ease;
-    white-space: nowrap;
-}
 
-.save-pill:hover { transform: translateY(-2px); }
-.save-pill:active { transform: translateY(2px); box-shadow: 0 1px 0 #2e7d32; }
-
-.save-pill.closed {
-    background: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
-}
