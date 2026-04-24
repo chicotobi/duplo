@@ -19,7 +19,7 @@ from ..repositories.layouts import (
     layouts_parse,
     pieces_update,
 )
-from .geometry import PIECE_TYPES, add_piece, get_path_cursor
+from .geometry import PIECE_TYPES, add_piece
 from .thumbnails import generate_thumbnail
 
 
@@ -170,14 +170,12 @@ class LayoutEditor:
             pathes2.append({"path": path, "color": col, "centerlines": cls, "type": piece})
 
         ghosts = {}
+        cursor = None
         if not is_closed:
             current_ending = free_endings[self.cursor_idx]
             cursor_pos = endings[current_ending[0]][current_ending[1]]
-            pathes2.append({
-                "path": get_path_cursor(cursor_pos),
-                "color": "blue",
-                "cursor": True,
-            })
+            (x1, y1), (x2, y2) = cursor_pos
+            cursor = [{"x": x1, "y": y1}, {"x": x2, "y": y2}]
             for action, piece_type, e2 in _GHOST_SPECS:
                 try:
                     pts, _, cls = add_piece(piece_type, cursor_pos, e2)
@@ -193,6 +191,7 @@ class LayoutEditor:
             "counter": counter,
             "is_closed": is_closed,
             "ghosts": ghosts,
+            "cursor": cursor,
         }
 
     # --------------------------------------------------------------- helpers

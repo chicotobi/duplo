@@ -74,7 +74,8 @@
     window.EDITOR_DATA = {
         pathes:   {{ pathes | tojson }},
         isClosed: {{ 'true' if is_closed else 'false' }},
-        ghosts:   {{ ghosts | tojson }}
+        ghosts:   {{ ghosts | tojson }},
+        cursor:   {{ cursor | tojson }}
     };
 </script>
 <script src="{{ asset_url('js/track_edit.js') }}"></script>

@@ -76,7 +76,7 @@ def test_view_model_shape(app, track_id):
         editor.apply_action("straight")
         user_lib = {"straight": 99, "curve": 99, "switch": 99, "crossing": 99}
         vm = editor.view_model(user_lib)
-        assert set(vm.keys()) == {"pathes", "counter", "is_closed", "ghosts"}
+        assert set(vm.keys()) == {"pathes", "counter", "is_closed", "ghosts", "cursor"}
         assert vm["counter"]["straight"] == 1
         # Open track => ghosts populated for all 5 actions
         assert set(vm["ghosts"].keys()) == {"straight", "left", "right", "switch", "crossing"}

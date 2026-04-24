@@ -6,6 +6,7 @@
     const pieces = data.pathes || [];
     const isClosed = !!data.isClosed;
     const ghosts = data.ghosts || {};
+    const cursor = data.cursor || null;
 
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
@@ -165,6 +166,49 @@
         }
         ctx.closePath();
         ctx.fill();
+    }
+
+    function drawCursorMarker(c) {
+        // c = [{x,y},{x,y}] -- the two corner points of the active free end.
+        const mx = (c[0].x + c[1].x) / 2;
+        const my = (c[0].y + c[1].y) / 2;
+        // Outward perpendicular (matches old get_path_cursor handedness).
+        const px = c[0].y - c[1].y;
+        const py = c[1].x - c[0].x;
+        const plen = Math.hypot(px, py) || 1;
+        const arrowLen = 9;
+        const ax = mx + (px / plen) * arrowLen;
+        const ay = my + (py / plen) * arrowLen;
+        const sx = mx, sy = my;
+        const cx = wx(sx), cy = wy(sy);
+        const tx = wx(ax), ty = wy(ay);
+
+        ctx.save();
+        ctx.lineWidth = 2 / scale;
+        ctx.strokeStyle = '#ff8f00';
+        ctx.fillStyle = '#ff8f00';
+        // Shaft
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        // Arrow head (triangle at tip)
+        const head = 4;
+        const hx = -(px / plen) * head;
+        const hy = -(py / plen) * head;
+        const wxn = -py / plen;  // perpendicular to arrow direction (in world)
+        const wyn = px / plen;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(wx(ax + hx + wxn * head * 0.7), wy(ay + hy + wyn * head * 0.7));
+        ctx.lineTo(wx(ax + hx - wxn * head * 0.7), wy(ay + hy - wyn * head * 0.7));
+        ctx.closePath();
+        ctx.fill();
+        // Base dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5 / scale + 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 
     function railColor(c) {
@@ -361,6 +405,8 @@
             fillPolygon(g.path, '#90caf9');
             drawTiesAndRails(g.centerlines || [], 'ghost');
             ctx.restore();
+        } else if (cursor && !isClosed) {
+            drawCursorMarker(cursor);
         }
 
         if (trainPath) drawTrain(trainS);

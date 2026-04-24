@@ -119,7 +119,10 @@ def track_edit():
         editor = editor_storage.load(user_id, track_id)
 
     if request.method == "POST":
-        action = next(iter(request.form.keys()))
+        action = next(
+            (k for k in request.form.keys() if k != "csrf_token"),
+            "",
+        )
         if editor.apply_action(action) == "saved":
             editor_storage.clear(user_id, track_id)
             return redirect("/")
