@@ -182,3 +182,59 @@ def snap_pose(piece_type,
                     "target": {"piece_id": target["piece_id"],
                                "ending_idx": target["ending_idx"]}}
     return best
+
+
+# ------------------------------------------------------------------ overlap
+
+def world_polygon(piece_type, x, y, rot_steps):
+    """Return world-space outline as a list of ``(x, y)`` tuples."""
+    angle = (int(rot_steps) % 12) * pi / 6
+    ca, sa = cos(angle), sin(angle)
+    x, y = float(x), float(y)
+    result = []
+    for p in points[piece_type]:
+        rx, ry = _rotate(p, ca, sa)
+        result.append((rx + x, ry + y))
+    return result
+
+
+def _point_in_polygon(px, py, poly):
+    """Ray-casting point-in-polygon test."""
+    n = len(poly)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if ((yi > py) != (yj > py)) and \
+                (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _segments_intersect(a1, a2, b1, b2):
+    """Return ``True`` if segment *a1→a2* properly crosses *b1→b2*."""
+    def _cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    d1 = _cross(b1, b2, a1)
+    d2 = _cross(b1, b2, a2)
+    d3 = _cross(a1, a2, b1)
+    d4 = _cross(a1, a2, b2)
+    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+
+
+def polygons_overlap(poly_a, poly_b):
+    """Return ``True`` if two simple polygons share interior area."""
+    na, nb = len(poly_a), len(poly_b)
+    for i in range(na):
+        a1, a2 = poly_a[i], poly_a[(i + 1) % na]
+        for j in range(nb):
+            b1, b2 = poly_b[j], poly_b[(j + 1) % nb]
+            if _segments_intersect(a1, a2, b1, b2):
+                return True
+    if _point_in_polygon(poly_a[0][0], poly_a[0][1], poly_b):
+        return True
+    if _point_in_polygon(poly_b[0][0], poly_b[0][1], poly_a):
+        return True
+    return False

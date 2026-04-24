@@ -29,8 +29,11 @@ from .geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
     ending_count,
+    polygons_overlap,
     snap_pose,
+    w0,
     world_endings_for_pose,
+    world_polygon,
 )
 from .thumbnails import generate_thumbnail
 
@@ -123,13 +126,43 @@ class LayoutEditor:
     def add_piece(self, piece_type, x, y, rot=0, select=True):
         if piece_type not in PIECE_TYPES:
             raise ValueError(f"unknown piece type: {piece_type}")
+        x, y = self._nudge_to_avoid_overlap(
+            piece_type, float(x), float(y), int(rot) % 12,
+        )
         pid = self._mint_id()
         self.pieces.append({"id": pid, "type": piece_type,
-                            "x": float(x), "y": float(y),
+                            "x": x, "y": y,
                             "rot": int(rot) % 12})
         if select:
             self.selection = {"piece_id": pid, "ending_idx": None}
         return pid
+
+    def _nudge_to_avoid_overlap(self, piece_type, x, y, rot, exclude_id=None):
+        """Shift ``(x, y)`` to the nearest non-overlapping position."""
+        if not self.pieces:
+            return x, y
+        existing = [
+            world_polygon(p["type"], p["x"], p["y"], p["rot"])
+            for p in self.pieces
+            if p["id"] != exclude_id
+        ]
+        new_poly = world_polygon(piece_type, x, y, rot)
+        if not any(polygons_overlap(new_poly, ep) for ep in existing):
+            return x, y
+        # Try positions in expanding rings around the original point.
+        step = w0  # one piece-width per step
+        _dirs = [
+            (1, 0), (-1, 0), (0, 1), (0, -1),
+            (1, 1), (-1, 1), (1, -1), (-1, -1),
+        ]
+        for dist in range(1, 30):
+            for dx, dy in _dirs:
+                nx = x + dx * dist * step
+                ny = y + dy * dist * step
+                new_poly = world_polygon(piece_type, nx, ny, rot)
+                if not any(polygons_overlap(new_poly, ep) for ep in existing):
+                    return nx, ny
+        return x, y  # fallback: give up after many attempts
 
     def move_piece(self, piece_id, x, y, rot):
         p = self._piece(piece_id)
@@ -200,6 +233,12 @@ class LayoutEditor:
             sx, sy, srot = best["pose"]
             p["x"], p["y"], p["rot"] = float(sx), float(sy), int(srot) % 12
             return {"piece": dict(p), "snapped": True, "target": best["target"]}
+
+        # No snap — nudge to avoid overlapping any other piece.
+        nx, ny = self._nudge_to_avoid_overlap(
+            p["type"], p["x"], p["y"], p["rot"], exclude_id=piece_id,
+        )
+        p["x"], p["y"] = nx, ny
         return {"piece": dict(p), "snapped": False, "target": None}
 
     # --------------------------------------------------------------- persist
