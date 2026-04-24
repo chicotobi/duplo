@@ -130,49 +130,36 @@ def switch_svg() -> str:
 
 
 def crossing_svg() -> str:
-    # Two straight pieces crossed at 60 degrees.
-    def arm(rotate: float) -> str:
-        rot = f' transform="rotate({rotate})"' if rotate else ""
-        return (
-            f'<line x1="0" y1="-48" x2="0" y2="48" '
-            f'stroke="{STROKE_TIE}" stroke-width="{TIE_W}" '
-            f'stroke-dasharray="{TIE_DASH}"{rot}/>'
-            f'<line x1="0" y1="-48" x2="0" y2="48" '
-            f'stroke="{STROKE_BALLAST}" stroke-width="{BALLAST_W}"{rot}/>'
-            f'<line x1="-{RAIL_OFFSET}" y1="-48" x2="-{RAIL_OFFSET}" y2="48" '
-            f'stroke="{STROKE_RAIL}" stroke-width="{RAIL_W}"{rot}/>'
-            f'<line x1="{RAIL_OFFSET}" y1="-48" x2="{RAIL_OFFSET}" y2="48" '
-            f'stroke="{STROKE_RAIL}" stroke-width="{RAIL_W}"{rot}/>'
-        )
+    # Two straight arms crossed at 60 degrees. Each arm is l0 long total
+    # (matches geometry), so half-length matches the straight icon (48 SVG
+    # units == l0/2 in geometry-space, scale 2.4).
+    H = 48
 
     # Render ties for both arms first, then ballast, then rails, so the layers
     # stack correctly even at the crossing point.
     body = (
         # ties for both arms
         f'<g>'
-        f'<line x1="0" y1="-48" x2="0" y2="48" stroke="{STROKE_TIE}" '
+        f'<line x1="0" y1="-{H}" x2="0" y2="{H}" stroke="{STROKE_TIE}" '
         f'stroke-width="{TIE_W}" stroke-dasharray="{TIE_DASH}"/>'
-        f'<line x1="0" y1="-48" x2="0" y2="48" stroke="{STROKE_TIE}" '
+        f'<line x1="0" y1="-{H}" x2="0" y2="{H}" stroke="{STROKE_TIE}" '
         f'stroke-width="{TIE_W}" stroke-dasharray="{TIE_DASH}" transform="rotate(60)"/>'
         f'</g>'
         # ballast for both arms
         f'<g>'
-        f'<line x1="0" y1="-48" x2="0" y2="48" stroke="{STROKE_BALLAST}" '
+        f'<line x1="0" y1="-{H}" x2="0" y2="{H}" stroke="{STROKE_BALLAST}" '
         f'stroke-width="{BALLAST_W}"/>'
-        f'<line x1="0" y1="-48" x2="0" y2="48" stroke="{STROKE_BALLAST}" '
+        f'<line x1="0" y1="-{H}" x2="0" y2="{H}" stroke="{STROKE_BALLAST}" '
         f'stroke-width="{BALLAST_W}" transform="rotate(60)"/>'
         f'</g>'
         # rails
         f'<g stroke="{STROKE_RAIL}" stroke-width="{RAIL_W}">'
-        f'<line x1="-{RAIL_OFFSET}" y1="-48" x2="-{RAIL_OFFSET}" y2="48"/>'
-        f'<line x1="{RAIL_OFFSET}"  y1="-48" x2="{RAIL_OFFSET}"  y2="48"/>'
-        f'<line x1="-{RAIL_OFFSET}" y1="-48" x2="-{RAIL_OFFSET}" y2="48" transform="rotate(60)"/>'
-        f'<line x1="{RAIL_OFFSET}"  y1="-48" x2="{RAIL_OFFSET}"  y2="48" transform="rotate(60)"/>'
+        f'<line x1="-{RAIL_OFFSET}" y1="-{H}" x2="-{RAIL_OFFSET}" y2="{H}"/>'
+        f'<line x1="{RAIL_OFFSET}"  y1="-{H}" x2="{RAIL_OFFSET}"  y2="{H}"/>'
+        f'<line x1="-{RAIL_OFFSET}" y1="-{H}" x2="-{RAIL_OFFSET}" y2="{H}" transform="rotate(60)"/>'
+        f'<line x1="{RAIL_OFFSET}"  y1="-{H}" x2="{RAIL_OFFSET}"  y2="{H}" transform="rotate(60)"/>'
         f'</g>'
     )
-    # arm() is intentionally unused here to keep layer stacking clean,
-    # but exported below for callers that want a single-arm helper.
-    _ = arm
     return _svg(body)
 
 

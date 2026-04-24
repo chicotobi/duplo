@@ -16,7 +16,12 @@ body { overflow: hidden; }
     border: none;
     display: block;
     background: #7fbf52;
+    touch-action: none;
 }
+
+.palette-tile { touch-action: none; }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-btn:disabled:hover { transform: none; filter: none; }
 
 /* Top status strip */
 .status-strip {

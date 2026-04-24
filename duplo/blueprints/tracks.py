@@ -1,10 +1,11 @@
-"""Track CRUD + the editor route."""
+"""Track CRUD + the editor route + JSON action endpoint."""
 
 import os
 
-from flask import Blueprint, redirect, render_template, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from ..auth import error, login_required
+from ..extensions import limiter
 from ..repositories.tracks import (
     tracks_create,
     tracks_delete,
@@ -102,31 +103,18 @@ def track_delete():
     return redirect("/track_open")
 
 
-@bp.route("/track_edit", methods=["GET", "POST"])
+@bp.route("/track_edit", methods=["GET"])
 @login_required
 def track_edit():
     user_id = session["user_id"]
     track_id = session["track_id"]
     track_title = session["track_title"]
 
-    if request.method == "GET":
-        if editor_storage.has_state(user_id, track_id):
-            editor = editor_storage.load(user_id, track_id)
-        else:
-            editor = LayoutEditor.load_from_db(track_id)
-        session["user_lib"] = users_library_read(user_id)[0]
-    else:
+    if editor_storage.has_state(user_id, track_id):
         editor = editor_storage.load(user_id, track_id)
-
-    if request.method == "POST":
-        action = next(
-            (k for k in request.form.keys() if k != "csrf_token"),
-            "",
-        )
-        if editor.apply_action(action) == "saved":
-            editor_storage.clear(user_id, track_id)
-            return redirect("/")
-
+    else:
+        editor = LayoutEditor.load_from_db(track_id)
+    session["user_lib"] = users_library_read(user_id)[0]
     editor_storage.save(user_id, editor)
 
     user_lib = session["user_lib"]
@@ -134,5 +122,87 @@ def track_edit():
         "track_edit.html",
         title=track_title,
         user_lib=user_lib,
-        **editor.view_model(user_lib),
+        view_model=editor.view_model(user_lib),
     )
+
+
+# --------------------------------------------------------------- JSON actions
+
+def _json_error(message, status=400):
+    return jsonify({"ok": False, "error": message}), status
+
+
+@bp.route("/track_edit/action", methods=["POST"])
+@login_required
+@limiter.limit("60/second", exempt_when=lambda: request.method != "POST")
+def track_edit_action():
+    """Apply a single editor action sent as JSON.
+
+    Body: ``{"op": str, ...args}``.
+    Returns ``{"ok": true, "view": <view_model>, "extra": {...}}`` on success
+    (or ``{"ok": true, "saved": true}`` for the ``save`` op).
+    """
+    user_id = session["user_id"]
+    track_id = session.get("track_id")
+    if track_id is None:
+        return _json_error("no track selected")
+
+    payload = request.get_json(silent=True) or {}
+    op = payload.get("op")
+    if not op:
+        return _json_error("missing op")
+
+    editor = editor_storage.load(user_id, track_id)
+    user_lib = session.get("user_lib") or users_library_read(user_id)[0]
+    extra = {}
+
+    try:
+        if op == "add_piece":
+            pid = editor.add_piece(
+                payload["type"],
+                float(payload.get("x", 0)),
+                float(payload.get("y", 0)),
+                int(payload.get("rot", 0)),
+                select=bool(payload.get("select", True)),
+            )
+            extra["piece_id"] = pid
+        elif op == "move_piece":
+            editor.move_piece(int(payload["piece_id"]),
+                              float(payload["x"]),
+                              float(payload["y"]),
+                              int(payload["rot"]))
+        elif op == "commit_move":
+            anchor = payload.get("anchor_ending_idx")
+            extra.update(editor.commit_move(
+                int(payload["piece_id"]),
+                float(payload["x"]),
+                float(payload["y"]),
+                int(payload["rot"]),
+                anchor_ending_idx=None if anchor is None else int(anchor),
+            ))
+        elif op == "rotate_piece":
+            editor.rotate_piece(int(payload["piece_id"]),
+                                int(payload.get("delta_steps", 1)))
+        elif op == "delete_piece":
+            editor.delete_piece(int(payload["piece_id"]))
+        elif op == "select":
+            ending_idx = payload.get("ending_idx")
+            editor.select(int(payload["piece_id"]),
+                          None if ending_idx is None else int(ending_idx))
+        elif op == "clear_selection":
+            editor.clear_selection()
+        elif op == "save":
+            editor.save()
+            editor_storage.clear(user_id, track_id)
+            return jsonify({"ok": True, "saved": True})
+        else:
+            return _json_error(f"unknown op: {op}")
+    except (KeyError, ValueError, TypeError) as e:
+        return _json_error(str(e))
+
+    editor_storage.save(user_id, editor)
+    return jsonify({
+        "ok": True,
+        "view": editor.view_model(user_lib),
+        "extra": extra,
+    })

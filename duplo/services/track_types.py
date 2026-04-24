@@ -85,10 +85,12 @@ def switch():
 # Crossing with input at the bottom, bottom left, top, top right
 # Endings are bottom (0), bottom left (1), top (2), top right (3)
 def crossing():
-    a1 = (-w0, -l0)
-    a2 = (w0, -l0)
-    a3 = (w0, l0)
-    a4 = (-w0, l0)
+    hw = w0 / 2
+    hl = l0 / 2
+    a1 = (-hw, -hl)
+    a2 = (hw, -hl)
+    a3 = (hw, hl)
+    a4 = (-hw, hl)
     cost = cos(pi / 3)
     sint = sin(pi / 3)
     b1 = (cost * a1[0] + sint * a1[1], -sint * a1[0] + cost * a1[1])
@@ -99,10 +101,10 @@ def crossing():
     # Calculate the tricky corner points
     m = (b4[1] - b1[1]) / (b4[0] - b1[0])
     y0 = b4[1] - m * b4[0]
-    v1 = m * -w0 + y0
-    v2 = m * w0 + y0
+    v1 = m * -hw + y0
+    v2 = m * hw + y0
 
-    points = [a1, a2, (w0, -v1), b3, b4, (w0, v2), a3, a4, (-w0, v1), b1, b2, (-w0, -v2)]
+    points = [a1, a2, (hw, -v1), b3, b4, (hw, v2), a3, a4, (-hw, v1), b1, b2, (-hw, -v2)]
 
     endings = [
         [a2, a1],

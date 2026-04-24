@@ -1,207 +1,301 @@
-"""``LayoutEditor`` — encapsulates the track editor state machine.
+"""``LayoutEditor`` — pose-based, independent-pieces state machine.
 
-The editor holds three pieces of working state for a given user/track:
+State
+-----
+* ``pieces``    — list of ``{"id": int, "type": str, "x": float, "y": float, "rot": int}``
+                  in stable id-order. Persisted-piece ids are positive (the DB pk),
+                  unsaved pieces have negative provisional ids assigned client-side
+                  by the editor. Ids are stable across the session.
+* ``selection`` — ``{"piece_id": int, "ending_idx": int|None} | None``
+* ``track_id``
 
-  * ``pieces``       — list of piece-type strings, in placement order
-  * ``connections``  — list of dicts ``{"p1", "e1", "p2", "e2"}``
-  * ``cursor_idx``   — index into the current free-endings list
+Operations
+----------
+``add_piece``, ``move_piece``, ``commit_move``, ``rotate_piece``,
+``delete_piece``, ``select`` / ``clear_selection``, ``save``.
 
-Mutating operations (:meth:`add_piece`, :meth:`delete_last`,
-:meth:`next_ending`, :meth:`rotate_last`) update those fields and reposition
-the cursor sensibly. :meth:`save` persists to the canonical pieces /
-connections tables and regenerates the thumbnail.
+Snapping is handled by :func:`snap_pose`. Connections are derived at view
+time from coincident world endings.
 """
 
 from ..repositories.layouts import (
-    connections_update,
     layouts_build,
+    layouts_connections,
     layouts_free_endings,
     layouts_parse,
     pieces_update,
 )
-from .geometry import PIECE_TYPES, add_piece
+from .geometry import (
+    PIECE_TYPES,
+    SNAP_TOLERANCE,
+    ending_count,
+    snap_pose,
+    world_endings_for_pose,
+)
 from .thumbnails import generate_thumbnail
 
 
-_GHOST_SPECS = [
-    ("straight", "straight", 0),
-    ("left",     "curve",    0),
-    ("right",    "curve",    1),
-    ("switch",   "switch",   0),
-    ("crossing", "crossing", 0),
-]
-
-
 class LayoutEditor:
-    """Pure-Python state machine for track editing."""
+    """In-memory state machine for the pose-based track editor."""
 
-    def __init__(self, track_id, pieces, connections, cursor_idx):
+    def __init__(self, track_id, pieces, selection=None, next_provisional_id=-1):
         self.track_id = track_id
-        self.pieces = list(pieces)
-        # Always store as a fresh list of plain dicts.
-        self.connections = [
-            {"p1": int(c["p1"]), "e1": int(c["e1"]),
-             "p2": int(c["p2"]), "e2": int(c["e2"])}
-            for c in connections
+        self.pieces = [
+            {"id": int(p["id"]), "type": p["type"],
+             "x": float(p["x"]), "y": float(p["y"]), "rot": int(p["rot"]) % 12}
+            for p in pieces
         ]
-        self.cursor_idx = cursor_idx
+        self.selection = self._normalise_selection(selection)
+        # Counter used to mint ids for unsaved pieces (negative, decreasing).
+        self._next_provisional = int(next_provisional_id)
 
     # ------------------------------------------------------------------ load
 
     @classmethod
     def load_from_db(cls, track_id):
-        """Initialise an editor from the persisted layout."""
-        pieces, connections = layouts_parse(track_id)
-        return cls(track_id, pieces, connections, cursor_idx=0)
+        return cls(track_id, layouts_parse(track_id))
 
     @classmethod
-    def from_session(cls, track_id, pieces, connections, cursor_idx):
-        """Restore editor state previously stashed in the session cookie."""
-        return cls(track_id, pieces, connections, cursor_idx)
+    def from_session(cls, track_id, pieces, selection, next_provisional_id=-1):
+        return cls(track_id, pieces, selection, next_provisional_id)
 
     def to_session(self):
-        """Return a JSON-able dict suitable for stashing in the session."""
         return {
-            "pieces": self.pieces,
-            "connections": list(self.connections),
-            "cursor_idx": self.cursor_idx,
+            "pieces": [dict(p) for p in self.pieces],
+            "selection": dict(self.selection) if self.selection else None,
+            "next_provisional_id": self._next_provisional,
         }
 
-    # ----------------------------------------------------------------- query
+    # ----------------------------------------------------------- helpers
+
+    def _normalise_selection(self, sel):
+        if sel is None:
+            return None
+        pid = int(sel["piece_id"])
+        eidx = sel.get("ending_idx")
+        eidx = None if eidx is None else int(eidx)
+        # Drop selections referring to pieces that no longer exist.
+        if not any(p["id"] == pid for p in self.pieces):
+            return None
+        return {"piece_id": pid, "ending_idx": eidx}
+
+    def _piece(self, piece_id):
+        for p in self.pieces:
+            if p["id"] == piece_id:
+                return p
+        raise KeyError(piece_id)
+
+    def _mint_id(self):
+        pid = self._next_provisional
+        self._next_provisional -= 1
+        return pid
 
     def _build(self):
-        return layouts_build(self.pieces, self.connections)
+        return layouts_build(self.pieces)
 
-    def _free_endings(self, endings):
-        return layouts_free_endings(endings, self.connections)
+    # ------------------------------------------------------------- queries
 
     def is_closed(self):
-        _, endings, _ = self._build()
-        return len(self._free_endings(endings)) == 0
+        if not self.pieces:
+            return False
+        _, all_eds, _ = self._build()
+        return len(layouts_free_endings(all_eds)) == 0
+
+    def free_endings_excluding(self, piece_id):
+        """World-space free endings of every piece except ``piece_id``.
+
+        Used by :meth:`commit_move` and the client-side snap preview.
+        """
+        _, all_eds, _ = self._build()
+        # Recompute "free" while pretending the dragged piece does not exist:
+        # otherwise its current position would consume nearby endings.
+        others = {pid: eds for pid, eds in all_eds.items() if pid != piece_id}
+        free = layouts_free_endings(others)
+        out = []
+        for (pid, eidx) in free:
+            pair = others[pid][eidx]
+            out.append({"piece_id": pid, "ending_idx": eidx,
+                        "pair": [list(pair[0]), list(pair[1])]})
+        return out
 
     # ------------------------------------------------------------- mutations
 
-    def apply_action(self, action):
-        """Apply a UI action token (the form key submitted by the editor).
+    def add_piece(self, piece_type, x, y, rot=0, select=True):
+        if piece_type not in PIECE_TYPES:
+            raise ValueError(f"unknown piece type: {piece_type}")
+        pid = self._mint_id()
+        self.pieces.append({"id": pid, "type": piece_type,
+                            "x": float(x), "y": float(y),
+                            "rot": int(rot) % 12})
+        if select:
+            self.selection = {"piece_id": pid, "ending_idx": None}
+        return pid
 
-        Returns ``"saved"`` if the editor persisted to the DB, else ``None``.
+    def move_piece(self, piece_id, x, y, rot):
+        p = self._piece(piece_id)
+        p["x"] = float(x)
+        p["y"] = float(y)
+        p["rot"] = int(rot) % 12
+
+    def rotate_piece(self, piece_id, delta_steps=1):
+        p = self._piece(piece_id)
+        p["rot"] = (p["rot"] + int(delta_steps)) % 12
+
+    def delete_piece(self, piece_id):
+        self.pieces = [p for p in self.pieces if p["id"] != piece_id]
+        if self.selection and self.selection["piece_id"] == piece_id:
+            self.selection = None
+
+    def select(self, piece_id, ending_idx=None):
+        # Validate.
+        p = self._piece(piece_id)
+        if ending_idx is not None:
+            ending_idx = int(ending_idx)
+            if not (0 <= ending_idx < ending_count[p["type"]]):
+                raise ValueError(f"ending_idx out of range: {ending_idx}")
+        self.selection = {"piece_id": piece_id, "ending_idx": ending_idx}
+
+    def clear_selection(self):
+        self.selection = None
+
+    def commit_move(self, piece_id, x, y, rot, anchor_ending_idx=None):
+        """Place ``piece_id`` at ``(x, y, rot)`` then attempt to snap.
+
+        ``anchor_ending_idx`` is the ending the user is actively snapping (if
+        ``None``, defaults to the selection's ending if it belongs to this
+        piece, otherwise tries every ending and keeps the closest snap).
+
+        Returns ``{"piece": <piece dict>, "snapped": bool, "target": ... or None}``.
         """
-        if action in ("left", "right"):
-            self.add_piece("curve", e2=(1 if action == "right" else 0))
-        elif action in PIECE_TYPES:
-            self.add_piece(action, e2=0)
-        elif action == "delete":
-            self.delete_last()
-        elif action == "next_ending":
-            self.next_ending()
-        elif action == "rotate":
-            self.rotate_last()
-        elif action == "save":
-            self.save()
-            return "saved"
-        return None
+        self.move_piece(piece_id, x, y, rot)
+        p = self._piece(piece_id)
+        targets = self.free_endings_excluding(piece_id)
 
-    def add_piece(self, piece_type, e2=0):
-        _, endings, _ = self._build()
-        free_endings = self._free_endings(endings)
-        if not free_endings:
-            return
-        p1, e1 = free_endings[self.cursor_idx]
-        p2 = len(self.pieces)
-        self.pieces.append(piece_type)
-        self.connections.append({"p1": p1, "e1": e1, "p2": p2, "e2": e2})
-        self._snap_cursor_to_last()
+        # Decide which ending(s) to try as anchor.
+        if anchor_ending_idx is None and self.selection \
+                and self.selection["piece_id"] == piece_id \
+                and self.selection["ending_idx"] is not None:
+            anchor_ending_idx = self.selection["ending_idx"]
 
-    def delete_last(self):
-        if not self.pieces:
-            return
-        self.pieces.pop()
-        last = len(self.pieces)
-        self.connections = [
-            c for c in self.connections if c["p1"] != last and c["p2"] != last
-        ]
-        self._snap_cursor_to_last()
+        if anchor_ending_idx is not None:
+            anchors = [int(anchor_ending_idx)]
+        else:
+            anchors = list(range(ending_count[p["type"]]))
 
-    def next_ending(self):
-        _, endings, _ = self._build()
-        free_endings = self._free_endings(endings)
-        if free_endings:
-            self.cursor_idx = (self.cursor_idx + 1) % len(free_endings)
+        best = None
+        best_dist = float("inf")
+        for a in anchors:
+            res = snap_pose(p["type"], a, (p["x"], p["y"], p["rot"]), targets)
+            if res is None:
+                continue
+            # Distance from current pose to snapped pose.
+            dx = res["pose"][0] - p["x"]
+            dy = res["pose"][1] - p["y"]
+            d = dx * dx + dy * dy
+            if d < best_dist:
+                best_dist = d
+                best = res
 
-    def rotate_last(self):
-        if not self.pieces:
-            return
-        _, endings, _ = self._build()
-        current_piece = len(self.pieces) - 1
-        n = len(endings[current_piece])
-        for c in self.connections:
-            if c["p2"] == current_piece:
-                c["e2"] = (c["e2"] + 1) % n
-        self._snap_cursor_to_last()
+        if best is not None:
+            sx, sy, srot = best["pose"]
+            p["x"], p["y"], p["rot"] = float(sx), float(sy), int(srot) % 12
+            return {"piece": dict(p), "snapped": True, "target": best["target"]}
+        return {"piece": dict(p), "snapped": False, "target": None}
+
+    # --------------------------------------------------------------- persist
 
     def save(self):
-        pieces_update(track_id=self.track_id, pieces=self.pieces)
-        connections_update(track_id=self.track_id, connections=self.connections)
+        """Persist pieces to the canonical ``pieces`` table.
+
+        After save, every piece has a positive db id; selection is remapped.
+        """
+        old_ids = [p["id"] for p in self.pieces]
+        new_ids = pieces_update(track_id=self.track_id, pieces=self.pieces)
+        id_map = {old: int(new) for old, new in zip(old_ids, new_ids)}
+        for p, new_id in zip(self.pieces, new_ids):
+            p["id"] = int(new_id)
+        if self.selection:
+            mapped = id_map.get(self.selection["piece_id"])
+            if mapped is None:
+                self.selection = None
+            else:
+                self.selection["piece_id"] = mapped
         generate_thumbnail(self.track_id)
 
     # ----------------------------------------------------------------- view
 
     def view_model(self, user_lib):
-        """Build the dict consumed by ``track_edit.html``.
+        """Build the dict consumed by ``track_edit.html`` and the JSON action API.
 
-        Returns a dict with keys ``pathes``, ``counter``, ``is_closed``,
-        ``ghosts``. The caller is responsible for adding ``title`` /
-        ``user_lib`` before passing to ``render_template``.
+        Returns
+        -------
+        dict with keys:
+          * ``pieces``      — list of ``{id, type, x, y, rot, path, centerlines, endings, color}``
+                               where ``endings`` is ``[{a:{x,y}, b:{x,y}, free:bool}, ...]``
+          * ``connections`` — list of ``[{piece_id, ending_idx}, {piece_id, ending_idx}]`` pairs
+          * ``selection``   — ``{piece_id, ending_idx} | None``
+          * ``is_closed``   — bool
+          * ``counter``     — ``{piece_type: count}``
+          * ``snap_tolerance`` — world-units snap radius (handed to JS)
         """
-        pathes, endings, centerlines_list = self._build()
-        free_endings = self._free_endings(endings)
-        is_closed = len(free_endings) == 0
+        pathes, all_eds, cls_per_piece = self._build()
+        connections = layouts_connections(all_eds)
+        consumed = set()
+        for (a, b) in connections:
+            consumed.add(a)
+            consumed.add(b)
+        is_closed = bool(self.pieces) and not any(
+            (p["id"], eidx) not in consumed
+            for p in self.pieces
+            for eidx in range(ending_count[p["type"]])
+        )
 
-        pathes2 = []
-        counter = {p: 0 for p in PIECE_TYPES}
-        all_possible = True
-        for piece, path, cls in zip(self.pieces, pathes, centerlines_list):
-            counter[piece] += 1
-            if counter[piece] > user_lib[piece]:
-                col = "red"
-                all_possible = False
+        counter = {pt: 0 for pt in PIECE_TYPES}
+        all_within_lib = True
+        for p in self.pieces:
+            counter[p["type"]] += 1
+        for pt, n in counter.items():
+            if n > user_lib[pt]:
+                all_within_lib = False
+                break
+
+        out_pieces = []
+        for p, path, cls in zip(self.pieces, pathes, cls_per_piece):
+            if counter[p["type"]] > user_lib[p["type"]]:
+                color = "red"
+            elif is_closed and all_within_lib:
+                color = "green"
             else:
-                col = "black"
-            pathes2.append({"path": path, "color": col, "centerlines": cls, "type": piece})
+                color = "black"
+            eds_world = all_eds[p["id"]]
+            endings_view = []
+            for eidx, pair in enumerate(eds_world):
+                endings_view.append({
+                    "a": {"x": pair[0][0], "y": pair[0][1]},
+                    "b": {"x": pair[1][0], "y": pair[1][1]},
+                    "free": (p["id"], eidx) not in consumed,
+                })
+            out_pieces.append({
+                "id": p["id"],
+                "type": p["type"],
+                "x": p["x"], "y": p["y"], "rot": p["rot"],
+                "path": path,
+                "centerlines": cls,
+                "endings": endings_view,
+                "color": color,
+            })
 
-        ghosts = {}
-        cursor = None
-        if not is_closed:
-            current_ending = free_endings[self.cursor_idx]
-            cursor_pos = endings[current_ending[0]][current_ending[1]]
-            (x1, y1), (x2, y2) = cursor_pos
-            cursor = [{"x": x1, "y": y1}, {"x": x2, "y": y2}]
-            for action, piece_type, e2 in _GHOST_SPECS:
-                try:
-                    pts, _, cls = add_piece(piece_type, cursor_pos, e2)
-                    ghosts[action] = {"path": pts, "centerlines": cls}
-                except Exception:
-                    pass
-        elif all_possible:
-            for p in pathes2:
-                p["color"] = "green"
+        connections_view = [
+            [{"piece_id": a[0], "ending_idx": a[1]},
+             {"piece_id": b[0], "ending_idx": b[1]}]
+            for (a, b) in connections
+        ]
 
         return {
-            "pathes": pathes2,
-            "counter": counter,
+            "pieces": out_pieces,
+            "connections": connections_view,
+            "selection": dict(self.selection) if self.selection else None,
             "is_closed": is_closed,
-            "ghosts": ghosts,
-            "cursor": cursor,
+            "counter": counter,
+            "snap_tolerance": SNAP_TOLERANCE,
         }
-
-    # --------------------------------------------------------------- helpers
-
-    def _snap_cursor_to_last(self):
-        """Move the cursor to the highest-indexed free ending, or ``None`` if closed."""
-        _, endings, _ = self._build()
-        free_endings = self._free_endings(endings)
-        if not free_endings:
-            self.cursor_idx = None
-            return
-        tmp = max(i for (i, _) in free_endings)
-        self.cursor_idx = [i for (i, (j, _)) in enumerate(free_endings) if j == tmp][0]

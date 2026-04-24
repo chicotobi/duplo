@@ -2,6 +2,8 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ asset_url('css/track_edit.css') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 {% endblock %}
 
 {% block main %}
@@ -10,73 +12,51 @@
 
     <div class="status-strip">
         <span class="status-pill status-title">&#128646; {{ title }}</span>
-        <span class="status-pill status-badge {% if is_closed %}closed{% endif %}">
-            {% if is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
+        <span class="status-pill status-badge {% if view_model.is_closed %}closed{% endif %}" id="closedBadge">
+            {% if view_model.is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
         </span>
-        <div class="counter-strip">
+        <div class="counter-strip" id="counterStrip">
             {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
-            <span class="counter-pill {% if counter[piece] > user_lib[piece] %}over{% endif %}">
+            <span class="counter-pill {% if view_model.counter[piece] > user_lib[piece] %}over{% endif %}"
+                  data-piece="{{ piece }}">
                 <img src="{{ url_for('static', filename='pieces_svg/' + piece + '.svg') }}" alt="{{ piece }}">
-                {{ counter[piece] }} / {{ user_lib[piece] }}
+                <span class="count">{{ view_model.counter[piece] }}</span> / <span class="lib">{{ user_lib[piece] }}</span>
             </span>
             {% endfor %}
             <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
         </div>
     </div>
 
-    <form action="/track_edit" method="post" class="toolbar">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="tb-group">
-            <button type="submit" name="left" title="Left curve (&larr;)"
-                class="piece-tile flip {% if counter.curve > user_lib.curve %}over{% endif %}">
-                <img src="{{ url_for('static', filename='pieces_svg/curve.svg') }}" alt="left curve">
-                <span class="badge">{{ counter.curve }}/{{ user_lib.curve }}</span>
+    <div class="toolbar" id="toolbar">
+        <div class="tb-group" id="palette">
+            {% for piece in ['straight', 'curve', 'switch', 'crossing'] %}
+            <button type="button" class="piece-tile palette-tile" data-piece="{{ piece }}"
+                    title="Drag onto canvas, or click to spawn ({{ piece }})">
+                <img src="{{ url_for('static', filename='pieces_svg/' + piece + '.svg') }}" alt="{{ piece }}">
+                <span class="badge">{{ view_model.counter[piece] }}/{{ user_lib[piece] }}</span>
             </button>
-            <button type="submit" name="straight" title="Straight (&uarr;)"
-                class="piece-tile {% if counter.straight > user_lib.straight %}over{% endif %}">
-                <img src="{{ url_for('static', filename='pieces_svg/straight.svg') }}" alt="straight">
-                <span class="badge">{{ counter.straight }}/{{ user_lib.straight }}</span>
-            </button>
-            <button type="submit" name="right" title="Right curve (&rarr;)"
-                class="piece-tile {% if counter.curve > user_lib.curve %}over{% endif %}">
-                <img src="{{ url_for('static', filename='pieces_svg/curve.svg') }}" alt="right curve">
-                <span class="badge">{{ counter.curve }}/{{ user_lib.curve }}</span>
-            </button>
-            <button type="submit" name="switch" title="Switch (S)"
-                class="piece-tile {% if counter.switch > user_lib.switch %}over{% endif %}">
-                <img src="{{ url_for('static', filename='pieces_svg/switch.svg') }}" alt="switch">
-                <span class="badge">{{ counter.switch }}/{{ user_lib.switch }}</span>
-            </button>
-            <button type="submit" name="crossing" title="Crossing (X)"
-                class="piece-tile {% if counter.crossing > user_lib.crossing %}over{% endif %}">
-                <img src="{{ url_for('static', filename='pieces_svg/crossing.svg') }}" alt="crossing">
-                <span class="badge">{{ counter.crossing }}/{{ user_lib.crossing }}</span>
-            </button>
+            {% endfor %}
         </div>
 
         <div class="tb-divider"></div>
 
-        <div class="tb-group">
-            <button type="submit" name="rotate" class="action-btn rotate" title="Rotate piece (R)">&#8635;</button>
-            <button type="submit" name="next_ending" class="action-btn next" title="Next ending (Tab)">&#9193;</button>
-            <button type="submit" name="delete" class="action-btn delete" title="Delete (Backspace)">&#10006;</button>
+        <div class="tb-group" id="selectionTools">
+            <button type="button" class="action-btn rotate" id="rotateCcw" title="Rotate CCW (Q)" disabled>&#8634;</button>
+            <button type="button" class="action-btn rotate" id="rotateCw"  title="Rotate CW (R / E)" disabled>&#8635;</button>
+            <button type="button" class="action-btn delete" id="deleteSel" title="Delete (Backspace)" disabled>&#10006;</button>
         </div>
 
         <div class="tb-divider"></div>
 
-        <button type="submit" name="save" class="save-pill {% if is_closed %}closed{% endif %}" title="Save (Ctrl+S)">
-            &#128190; Save{% if is_closed %} &amp; close{% endif %}
-        </button>
-    </form>
+        <button type="button" class="save-pill {% if view_model.is_closed %}closed{% endif %}" id="saveBtn"
+                title="Save (Ctrl+S)">&#128190; Save</button>
+    </div>
 </div>
 
 <script>
-    window.EDITOR_DATA = {
-        pathes:   {{ pathes | tojson }},
-        isClosed: {{ 'true' if is_closed else 'false' }},
-        ghosts:   {{ ghosts | tojson }},
-        cursor:   {{ cursor | tojson }}
-    };
+    window.EDITOR_DATA = {{ view_model | tojson }};
+    window.EDITOR_USER_LIB = {{ user_lib | tojson }};
+    window.EDITOR_ACTION_URL = "{{ url_for('tracks.track_edit_action') }}";
 </script>
 <script src="{{ asset_url('js/track_edit.js') }}"></script>
 {% endblock %}

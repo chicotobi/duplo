@@ -1,16 +1,10 @@
 """Storage backend for in-progress ``LayoutEditor`` state.
 
-Two backends are supported, selected at runtime by the
-``DUPLO_DB_EDITOR_STATE`` Flask config flag:
+Two backends, selected by the ``DUPLO_DB_EDITOR_STATE`` Flask config flag:
 
-* ``False`` (default) — state lives in the Flask cookie session, exactly as
-  it has historically. The session cookie can grow large for big tracks.
-* ``True`` — state lives in the ``editor_states`` table, keyed on
-  (user_id, track_id). The session only carries identifiers. Survives
-  server restarts and avoids cookie-size limits.
-
-Callers stay unaware of the backend: they only see ``load`` / ``save`` /
-``clear`` / ``has_state``.
+* ``False`` (default) — Flask cookie session. Cookie can grow large.
+* ``True`` — ``editor_states`` table keyed on (user_id, track_id). Survives
+  restarts and avoids cookie-size limits.
 """
 
 import json
@@ -25,64 +19,63 @@ from ..repositories.editor_states import (
 from .editor import LayoutEditor
 
 
+_SESSION_KEYS = ("pieces", "selection", "next_provisional_id", "editor_track_id")
+
+
 def _use_db():
     return bool(current_app.config.get("DUPLO_DB_EDITOR_STATE"))
 
 
 def has_state(user_id, track_id):
-    """Return True if there's a resumable editor state for this user/track."""
     if _use_db():
         return editor_state_read(user_id, track_id) is not None
-    if not all(k in session for k in ("pieces", "connections", "cursor_idx")):
+    if "pieces" not in session:
         return False
     return session.get("editor_track_id") == track_id
 
 
 def load(user_id, track_id):
-    """Resume an editor session, or initialise from the DB if none exists."""
     if _use_db():
         row = editor_state_read(user_id, track_id)
         if row is None:
             return LayoutEditor.load_from_db(track_id)
+        sel = json.loads(row["selection_json"]) if row["selection_json"] else None
         return LayoutEditor.from_session(
             track_id,
             json.loads(row["pieces_json"]),
-            json.loads(row["connections_json"]),
-            row["cursor_idx"],
+            sel,
+            next_provisional_id=-1,
         )
     if session.get("editor_track_id") != track_id:
-        # Stale state belonging to a different track — start fresh from DB.
         return LayoutEditor.load_from_db(track_id)
     return LayoutEditor.from_session(
         track_id,
-        session["pieces"],
-        session["connections"],
-        session["cursor_idx"],
+        session.get("pieces", []),
+        session.get("selection"),
+        next_provisional_id=session.get("next_provisional_id", -1),
     )
 
 
 def save(user_id, editor):
-    """Persist transient editor state."""
     state = editor.to_session()
     if _use_db():
         editor_state_upsert(
             user_id=user_id,
             track_id=editor.track_id,
             pieces_json=json.dumps(state["pieces"]),
-            connections_json=json.dumps(state["connections"]),
-            cursor_idx=state["cursor_idx"],
+            selection_json=json.dumps(state["selection"]) if state["selection"] else None,
         )
-        # Make sure stale session copies don't shadow the DB on next load.
-        for k in ("pieces", "connections", "cursor_idx", "editor_track_id"):
+        for k in _SESSION_KEYS:
             session.pop(k, None)
     else:
-        session.update(state)
+        session["pieces"] = state["pieces"]
+        session["selection"] = state["selection"]
+        session["next_provisional_id"] = state["next_provisional_id"]
         session["editor_track_id"] = editor.track_id
 
 
 def clear(user_id, track_id):
-    """Drop transient state (called on save-and-exit, on track delete, etc.)."""
     if _use_db():
         editor_state_delete(user_id, track_id)
-    for k in ("pieces", "connections", "cursor_idx", "editor_track_id"):
+    for k in _SESSION_KEYS:
         session.pop(k, None)

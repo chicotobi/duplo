@@ -22,7 +22,7 @@ def thumbnail_url(track_id):
 
 def generate_thumbnail(track_id):
     """Generate (or regenerate) an SVG thumbnail for a track layout."""
-    pieces, connections = layouts_parse(track_id)
+    pieces = layouts_parse(track_id)
 
     if len(pieces) == 0:
         svg = (
@@ -34,7 +34,7 @@ def generate_thumbnail(track_id):
             '</svg>'
         )
     else:
-        pathes, _, _ = layouts_build(pieces, connections)
+        pathes, _, _ = layouts_build(pieces)
         xs = [pt['x'] for path in pathes for pt in path]
         ys = [pt['y'] for path in pathes for pt in path]
         minx, maxx = min(xs), max(xs)
@@ -86,5 +86,5 @@ def delete_thumbnail(track_id):
 
 
 def piece_counts(track_id):
-    pieces = [i['piece'] for i in pieces_read(track_id=track_id)]
+    pieces = [i['type'] for i in pieces_read(track_id=track_id)]
     return {p: sum(1 for x in pieces if x == p) for p in PIECE_TYPES}

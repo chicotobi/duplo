@@ -3,7 +3,7 @@
 from flask import Blueprint, current_app, render_template, session
 
 from ..auth import error
-from ..repositories.layouts import connections_read_all, pieces_read_all
+from ..repositories.layouts import pieces_read_all
 from ..repositories.tracks import tracks_read_all
 from ..repositories.users import users_read_all
 
@@ -17,16 +17,14 @@ def index():
         users_debug = users_read_all()
         tracks_debug = tracks_read_all()
         pieces_debug = pieces_read_all()
-        connections_debug = connections_read_all()
     else:
-        users_debug = tracks_debug = pieces_debug = connections_debug = []
+        users_debug = tracks_debug = pieces_debug = []
     return render_template(
         "index.html",
         DEBUG=debug,
         users_debug=users_debug,
         tracks_debug=tracks_debug,
         pieces_debug=pieces_debug,
-        connections_debug=connections_debug,
     )
 
 
@@ -38,6 +36,5 @@ def debug():
             users_debug=users_read_all(),
             tracks_debug=tracks_read_all(),
             pieces_debug=pieces_read_all(),
-            connections_debug=connections_read_all(),
         )
     return error("Debug only for admin")
