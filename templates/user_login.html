@@ -2,6 +2,7 @@
 
 {% block main %}
 <form action="/user_login" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="name" placeholder="Name"
             type="text">

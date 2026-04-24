@@ -1,0 +1,56 @@
+.button-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0px;
+}
+
+.edit_buttons_top {
+    flex: 1 1 18%;
+    margin: 3px;
+}
+
+.edit_buttons_bottom {
+    flex: 1 1 20%;
+    margin: 3px;
+}
+
+canvas {
+    border: 1px solid black;
+}
+
+.form-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    flex: 1 1 45%;
+    margin: 10px;
+}
+
+.form-group label,
+.form-group input {
+    display: block;
+    width: 100%;
+    text-align: left;
+}
+
+.form-group input {
+    margin-top: 5px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border: 1px solid black;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}

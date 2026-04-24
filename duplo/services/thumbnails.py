@@ -1,12 +1,15 @@
+"""Per-track SVG thumbnail generation."""
+
 import os
 
-from helpers import app
-from geometry import PIECE_TYPES
-from sql_layouts import layouts_parse, layouts_build
+from flask import current_app
+
+from .geometry import PIECE_TYPES
+from ..repositories.layouts import layouts_build, layouts_parse, pieces_read
 
 
 def _thumb_dir():
-    return os.path.join(app.static_folder, 'thumbnails')
+    return os.path.join(current_app.static_folder, 'thumbnails')
 
 
 def thumbnail_file(track_id):
@@ -83,6 +86,5 @@ def delete_thumbnail(track_id):
 
 
 def piece_counts(track_id):
-    from sql_layouts import pieces_read
     pieces = [i['piece'] for i in pieces_read(track_id=track_id)]
     return {p: sum(1 for x in pieces if x == p) for p in PIECE_TYPES}

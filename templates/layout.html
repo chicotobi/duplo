@@ -1,64 +1,5 @@
 <!DOCTYPE html>
 
-<style>
-    .button-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0px;
-    }
-
-    .edit_buttons_top {
-        flex: 1 1 18%;
-        margin: 3px;
-    }
-
-    .edit_buttons_bottom {
-        flex: 1 1 20%;
-        margin: 3px;
-    }
-
-    canvas {
-        border: 1px solid black;
-    }
-
-    .form-container {
-        display: flex;
-        flex-wrap: wrap;
-    }
-
-    .form-group {
-        flex: 1 1 45%;
-        margin: 10px;
-    }
-
-    .form-group label,
-    .form-group input {
-        display: block;
-        width: 100%;
-        text-align: left;
-    }
-
-    .form-group input {
-        margin-top: 5px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th,
-    td {
-        border: 1px solid black;
-        padding: 8px;
-        text-align: left;
-    }
-
-    th {
-        background-color: #f2f2f2;
-    }
-</style>
-
 <html lang="en">
 
 <head>
@@ -72,6 +13,9 @@
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 
+    <link rel="stylesheet" href="{{ asset_url('css/layout.css') }}">
+    {% block head %}{% endblock %}
+
     <title>Duplino
     </title>
 </head>
@@ -80,7 +24,7 @@
     <nav class="bg-light border navbar navbar-expand-md navbar-light">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
-                <img src="static/logo.png" alt="main" width = "151" height = "20" />
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="main" width = "151" height = "20" />
             </a>
             <button aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler"
                 data-bs-target="#navbar" data-bs-toggle="collapse" type="button">

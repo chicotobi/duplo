@@ -1,5 +1,10 @@
 name: Deploy to PythonAnywhere
 
+# One-time bootstrap on the PA host before the first deploy that includes
+# alembic: run `python3 -m alembic stamp head` from PA_PROJECT_DIR so the
+# existing schema is marked as already-migrated. Subsequent deploys then
+# `alembic upgrade head` cleanly.
+
 on:
   push:
     branches: [main]
@@ -48,15 +53,15 @@ jobs:
           fi
 
           MARK="__DEPLOY_$(date +%s%N)__"
-          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && echo ${MARK}_OK || echo ${MARK}_FAIL
+          CMD="cd ${PA_PROJECT_DIR} && git pull --ff-only && python3 -m pip install --user -r requirements.txt && python3 -m alembic upgrade head && echo ${MARK}_OK || echo ${MARK}_FAIL
           "
-          echo "Sending git pull..."
+          echo "Sending git pull + migrations..."
           curl -sS --fail -H "$AUTH" \
             -X POST "${API}/consoles/${CONSOLE_ID}/send_input/" \
             --data-urlencode "input=${CMD}" > /dev/null
 
           echo "Waiting for command to finish..."
-          for i in $(seq 1 40); do
+          for i in $(seq 1 80); do
             sleep 3
             OUT=$(curl -sS -H "$AUTH" "${API}/consoles/${CONSOLE_ID}/get_latest_output/" \
               | python3 -c "import sys,json;print(json.load(sys.stdin).get('output',''))")
@@ -67,7 +72,7 @@ jobs:
             fi
             if echo "$OUT" | grep -q "${MARK}_FAIL"; then
               echo "$OUT"
-              echo "::error::git pull failed on PythonAnywhere."
+              echo "::error::git pull or migration failed on PythonAnywhere."
               exit 1
             fi
           done

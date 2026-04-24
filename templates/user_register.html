@@ -2,6 +2,7 @@
 
 {% block main %}
 <form action="/user_register" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <input autocomplete="off" pattern="[A-Za-z0-9]+" autofocus class="form-control mx-auto w-auto" name="name"
             placeholder="Name" type="text">
