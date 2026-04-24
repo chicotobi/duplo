@@ -33,7 +33,9 @@ def has_state(user_id, track_id):
     """Return True if there's a resumable editor state for this user/track."""
     if _use_db():
         return editor_state_read(user_id, track_id) is not None
-    return all(k in session for k in ("pieces", "connections", "cursor_idx"))
+    if not all(k in session for k in ("pieces", "connections", "cursor_idx")):
+        return False
+    return session.get("editor_track_id") == track_id
 
 
 def load(user_id, track_id):
@@ -48,6 +50,9 @@ def load(user_id, track_id):
             json.loads(row["connections_json"]),
             row["cursor_idx"],
         )
+    if session.get("editor_track_id") != track_id:
+        # Stale state belonging to a different track — start fresh from DB.
+        return LayoutEditor.load_from_db(track_id)
     return LayoutEditor.from_session(
         track_id,
         session["pieces"],
@@ -68,15 +73,16 @@ def save(user_id, editor):
             cursor_idx=state["cursor_idx"],
         )
         # Make sure stale session copies don't shadow the DB on next load.
-        for k in ("pieces", "connections", "cursor_idx"):
+        for k in ("pieces", "connections", "cursor_idx", "editor_track_id"):
             session.pop(k, None)
     else:
         session.update(state)
+        session["editor_track_id"] = editor.track_id
 
 
 def clear(user_id, track_id):
     """Drop transient state (called on save-and-exit, on track delete, etc.)."""
     if _use_db():
         editor_state_delete(user_id, track_id)
-    for k in ("pieces", "connections", "cursor_idx"):
+    for k in ("pieces", "connections", "cursor_idx", "editor_track_id"):
         session.pop(k, None)

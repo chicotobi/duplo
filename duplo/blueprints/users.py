@@ -5,8 +5,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..auth import error, login_required
 from ..extensions import limiter
-from ..repositories.layouts import pieces_read
-from ..repositories.tracks import tracks_read
 from ..repositories.users import (
     users_create,
     users_delete,
@@ -14,7 +12,6 @@ from ..repositories.users import (
     users_read_by_id,
     users_read_hash,
 )
-from ..services.geometry import PIECE_TYPES
 
 bp = Blueprint("users", __name__)
 
@@ -23,14 +20,7 @@ bp = Blueprint("users", __name__)
 @login_required
 def user_info():
     name = users_read_by_id(id=session["user_id"])[0]["name"]
-    tracks = tracks_read(user_id=session["user_id"])
-    track_info = []
-    for t in tracks:
-        pieces = [i["piece"] for i in pieces_read(track_id=t["id"])]
-        dct = {p: sum(1 for i in pieces if i == p) for p in PIECE_TYPES}
-        dct["title"] = t["title"]
-        track_info.append(dct)
-    return render_template("user_info.html", name=name, track_info=track_info)
+    return render_template("user_info.html", name=name)
 
 
 @bp.route("/user_register", methods=["GET", "POST"])
