@@ -18,17 +18,7 @@
 </head>
 
 <body>
-    {% if not session["user_id"] %}
-    <header class="anon-header">
-        <a href="/">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Duplino" width="151" height="20" />
-        </a>
-        <div class="anon-links">
-            <a href="/user_register">Register</a>
-            <a href="/user_login">Log In</a>
-        </div>
-    </header>
-    {% endif %}
+
 
     <main class="container pb-3 text-center">
         {% block main %}{% endblock %}
@@ -51,6 +41,21 @@
         <a href="/user_logout" class="bottom-tab">
             <span class="bottom-tab-icon">&#128682;</span>
             <span class="bottom-tab-label">Log out</span>
+        </a>
+    </nav>
+    {% else %}
+    <nav class="bottom-tabs" aria-label="Navigation">
+        <a href="/" class="bottom-tab {% if request.path == '/' %}active{% endif %}">
+            <span class="bottom-tab-icon">&#127968;</span>
+            <span class="bottom-tab-label">Home</span>
+        </a>
+        <a href="/user_register" class="bottom-tab {% if request.path == '/user_register' %}active{% endif %}">
+            <span class="bottom-tab-icon">&#9997;</span>
+            <span class="bottom-tab-label">Register</span>
+        </a>
+        <a href="/user_login" class="bottom-tab {% if request.path == '/user_login' %}active{% endif %}">
+            <span class="bottom-tab-icon">&#128274;</span>
+            <span class="bottom-tab-label">Log In</span>
         </a>
     </nav>
     {% endif %}

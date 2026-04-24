@@ -1,8 +1,11 @@
 {% extends "layout.html" %}
 
 {% block main %}
-<img src="static/error.png" alt="error" />
-<div style="text-align: center; font-weight: bold; font-size: 32px;">
-    {{ msg }}
+<div class="landing">
+    <img src="{{ url_for('static', filename='error.png') }}" alt="error" style="width:120px;" />
+    <div style="font-weight:bold; font-size:1.4em; margin-top:16px;">
+        {{ msg }}
+    </div>
+    <a href="/" class="anon-links" style="margin-top:24px;"><span style="padding:10px 28px;">&#8592; Home</span></a>
 </div>
 {% endblock %}

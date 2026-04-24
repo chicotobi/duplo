@@ -1,7 +1,9 @@
 {% extends "layout.html" %}
 
 {% block main %}
-<form action="/user_register" method="post">
+<div class="landing">
+    <a href="/"><img src="{{ url_for('static', filename='logo.png') }}" alt="Duplino" style="width:200px; margin-bottom:24px;"></a>
+    <form action="/user_register" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
         <input autocomplete="off" pattern="[A-Za-z0-9]+" autofocus class="form-control mx-auto w-auto" name="name"
@@ -14,5 +16,6 @@
         <input class="form-control mx-auto w-auto" name="confirmation" placeholder="Repeat password" type="password">
     </div>
     <button class="btn btn-primary" type="submit">Register</button>
-</form>
+    </form>
+</div>
 {% endblock %}

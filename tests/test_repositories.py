@@ -37,7 +37,7 @@ def test_users_create_and_read(app):
 def test_users_library_defaults_and_update(app, user_id):
     with app.app_context():
         lib = users_library_read(user_id)[0]
-        assert lib == {"straight": 99, "curve": 99, "switch": 99, "crossing": 99}
+        assert lib == {"straight": 8, "curve": 12, "switch": 2, "crossing": 1}
         users_library_set(user_id, 5, 7, 1, 2)
         lib = users_library_read(user_id)[0]
         assert lib == {"straight": 5, "curve": 7, "switch": 1, "crossing": 2}
