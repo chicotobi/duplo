@@ -1,8 +1,13 @@
-// Track editor canvas + interaction script (pose-based, drag/drop/snap).
-// Uses Pointer Events so mouse, touch, and pen share one code path.
-// Reads its initial render data from window.EDITOR_DATA.
+// Track editor — main entry point (state, canvas, rendering, gestures).
+// Depends on track_edit_geometry.js and track_edit_scenery.js being loaded
+// first via <script> tags (they populate window.TE).
 (function () {
     'use strict';
+
+    // ====================================================== imports from geometry / scenery modules
+    const { W0, L0, C0, ENDING_COUNT, PIECE_TYPES, MM_PER_UNIT, MAX_WORLD,
+            poseTransform, poseAlign, midpoint, localSnap } = window.TE;
+    const sceneryBitmap = window.TE.sceneryCanvas;
 
     // ====================================================== state & data
     let view = window.EDITOR_DATA || {};
@@ -24,132 +29,7 @@
     }
     const ACTION_URL = window.EDITOR_ACTION_URL;
     const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
-    const PIECE_TYPES = ['straight', 'curve', 'switch', 'crossing'];
     const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-
-    // ====================================================== piece geometry tables (mirror of duplo.services.geometry)
-    const W0 = 10;
-    const L0 = 40;
-    const C0 = L0 * 7 / 2 / Math.sqrt(3);
-    const ENDING_COUNT = { straight: 2, curve: 2, switch: 3, crossing: 4 };
-
-    function localStraight() {
-        return { points: [[0,0],[W0,0],[W0,L0],[0,L0]],
-                 endings: [[[W0,0],[0,0]], [[0,L0],[W0,L0]]] };
-    }
-    function localCurve() {
-        const n = 5;
-        const t = []; for (let i = 0; i < n; i++) t.push(i/(n-1)*Math.PI/6);
-        const x0 = t.map(Math.cos), y0 = t.map(Math.sin);
-        const ri = C0 - W0/2, ro = C0 + W0/2;
-        const pts = [];
-        for (let i = 0; i < n; i++) pts.push([ri*x0[i], ri*y0[i]]);
-        for (let i = n-1; i >= 0; i--) pts.push([ro*x0[i], ro*y0[i]]);
-        const c0a = Math.cos(0), s0a = Math.sin(0);
-        const c1a = Math.cos(Math.PI/6), s1a = Math.sin(Math.PI/6);
-        return { points: pts,
-                 endings: [[[ro*c0a, ro*s0a], [ri*c0a, ri*s0a]],
-                           [[ri*c1a, ri*s1a], [ro*c1a, ro*s1a]]] };
-    }
-    function localSwitch() {
-        const n = 10;
-        const m = Math.round(n*0.6);
-        const t = []; for (let i = 0; i < n; i++) t.push(i/(n-1)*Math.PI/6);
-        const x0 = t.map(Math.cos), y0 = t.map(Math.sin);
-        const ri = C0 - W0/2, ro = C0 + W0/2;
-        const pts = [];
-        for (let i = 0; i < n; i++) pts.push([ri*x0[i], ri*y0[i]]);
-        for (let i = n-1; i > m; i--) pts.push([ro*x0[i], ro*y0[i]]);
-        for (let i = m; i < n; i++) pts.push([2*C0 - ro*x0[i], ro*y0[i]]);
-        for (let i = n-1; i >= 0; i--) pts.push([2*C0 - ri*x0[i], ri*y0[i]]);
-        const c0a = Math.cos(0), s0a = Math.sin(0);
-        const c1a = Math.cos(Math.PI/6), s1a = Math.sin(Math.PI/6);
-        return { points: pts,
-                 endings: [[[ro*c0a, ro*s0a], [ri*c0a, ri*s0a]],
-                           [[ri*c1a, ri*s1a], [ro*c1a, ro*s1a]],
-                           [[2*C0 - ro*c1a, ro*s1a], [2*C0 - ri*c1a, ri*s1a]]] };
-    }
-    function localCrossing() {
-        const hw = W0/2, hl = L0/2;
-        const a1=[-hw,-hl], a2=[hw,-hl], a3=[hw,hl], a4=[-hw,hl];
-        const cost=Math.cos(Math.PI/3), sint=Math.sin(Math.PI/3);
-        const rot = p => [cost*p[0]+sint*p[1], -sint*p[0]+cost*p[1]];
-        const b1=rot(a1), b2=rot(a2), b3=rot(a3), b4=rot(a4);
-        const m = (b4[1]-b1[1])/(b4[0]-b1[0]);
-        const y0 = b4[1] - m*b4[0];
-        const v1 = m*-hw + y0, v2 = m*hw + y0;
-        const points = [a1, a2, [hw,-v1], b3, b4, [hw,v2], a3, a4, [-hw,v1], b1, b2, [-hw,-v2]];
-        return { points,
-                 endings: [[a2,a1],[b2,b1],[a4,a3],[b4,b3]] };
-    }
-    const LOCAL = {
-        straight: localStraight(),
-        curve:    localCurve(),
-        switch:   localSwitch(),
-        crossing: localCrossing(),
-    };
-
-    // Re-center each piece type so the local origin (0,0) sits at the
-    // centroid of the piece's outline. Mirrors duplo.services.geometry —
-    // both sides MUST recenter identically so stored poses align.
-    for (const _t of PIECE_TYPES) {
-        const lp = LOCAL[_t];
-        let sx = 0, sy = 0;
-        for (const p of lp.points) { sx += p[0]; sy += p[1]; }
-        const cx = sx / lp.points.length, cy = sy / lp.points.length;
-        lp.points = lp.points.map(p => [p[0] - cx, p[1] - cy]);
-        lp.endings = lp.endings.map(e => e.map(p => [p[0] - cx, p[1] - cy]));
-    }
-
-    function poseTransform(type, x, y, rot) {
-        const a = (((rot % 12) + 12) % 12) * Math.PI / 6;
-        const ca = Math.cos(a), sa = Math.sin(a);
-        const lp = LOCAL[type];
-        const trafo = p => [ca*p[0]-sa*p[1]+x, sa*p[0]+ca*p[1]+y];
-        return {
-            points: lp.points.map(trafo),
-            endings: lp.endings.map(e => e.map(trafo)),
-        };
-    }
-
-    function poseAlign(type, anchorIdx, target /* [[T1x,T1y],[T2x,T2y]] */) {
-        // Place piece so its anchor ending overlays target reversed.
-        const [L1, L2] = LOCAL[type].endings[anchorIdx];
-        const [T1, T2] = target;
-        const dlx = L2[0]-L1[0], dly = L2[1]-L1[1];
-        const dwx = T1[0]-T2[0], dwy = T1[1]-T2[1];
-        const angle = Math.atan2(dwy, dwx) - Math.atan2(dly, dlx);
-        let steps = Math.round(angle / (Math.PI/6)) % 12;
-        if (steps < 0) steps += 12;
-        const qa = steps * Math.PI/6;
-        const ca = Math.cos(qa), sa = Math.sin(qa);
-        return {
-            x: T2[0] - (ca*L1[0] - sa*L1[1]),
-            y: T2[1] - (sa*L1[0] + ca*L1[1]),
-            rot: steps,
-        };
-    }
-
-    function midpoint(pair) {
-        return [(pair[0][0]+pair[1][0])*0.5, (pair[0][1]+pair[1][1])*0.5];
-    }
-
-    function localSnap(type, anchorIdx, currentPose, targets, tol) {
-        const cw = poseTransform(type, currentPose.x, currentPose.y, currentPose.rot).endings[anchorIdx];
-        const cm = midpoint(cw);
-        let best = null, bestD = Infinity;
-        const tol2 = tol * tol;
-        for (const t of targets) {
-            const tm = midpoint(t.pair);
-            const d = (cm[0]-tm[0])**2 + (cm[1]-tm[1])**2;
-            if (d > tol2) continue;
-            if (d < bestD) {
-                bestD = d;
-                best = { pose: poseAlign(type, anchorIdx, t.pair), target: { piece_id: t.piece_id, ending_idx: t.ending_idx } };
-            }
-        }
-        return best;
-    }
 
     // ====================================================== canvas / view
     const canvas = document.getElementById('drawingCanvas');
@@ -201,61 +81,21 @@
     }
 
     // ====================================================== room / world constants
-    // 1 internal unit = 3.2 mm (l0=40 units = 128 mm real).
-    const MM_PER_UNIT = 128 / L0;  // 3.2
     const roomWMeters = window.EDITOR_ROOM_W || 6;
     const roomHMeters = window.EDITOR_ROOM_H || 4;
     const ROOM_W = roomWMeters * 1000 / MM_PER_UNIT;
     const ROOM_H = roomHMeters * 1000 / MM_PER_UNIT;
-    // Max visible area = 10×10 m
-    const MAX_WORLD = 10 * 1000 / MM_PER_UNIT;  // ~3125 units
 
-    // ====================================================== scenery
-    function mulberry32(seed) { return function () { let t = seed += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-    const _rand = mulberry32(20240507);
-    const DECOR_RANGE = MAX_WORLD / 2;
-    const decorations = [];
-    for (let i = 0; i < 600; i++) {
-        const r = _rand();
-        let kind = r < 0.45 ? 'tree' : (r < 0.85 ? 'bush' : 'flower');
-        decorations.push({ x: (_rand()-0.5)*2*DECOR_RANGE, y: (_rand()-0.5)*2*DECOR_RANGE, kind, size: 7+_rand()*9, tone: _rand() });
+    // ====================================================== scenery (bitmap blit)
+    function drawScenery() {
+        // Grey background covering the full visible canvas
+        const vx = -posX / scale, vy = -posY / scale;
+        const vw = canvas.width / scale, vh = canvas.height / scale;
+        ctx.fillStyle = '#d0d0d0';
+        ctx.fillRect(vx, vy, vw, vh);
+        // Blit the pre-rendered scenery bitmap into the world region
+        ctx.drawImage(sceneryBitmap, wx(-MAX_WORLD / 2), wy(MAX_WORLD / 2), MAX_WORLD, MAX_WORLD);
     }
-    const riverPath = [];
-    for (let i = -DECOR_RANGE; i <= DECOR_RANGE; i += 25) riverPath.push({ x: i, y: -380 + 35*Math.sin(i*0.012) + 10*Math.cos(i*0.04) });
-
-    function drawMeadow() {
-        const vx = -posX/scale, vy = -posY/scale;
-        const vw = canvas.width/scale, vh = canvas.height/scale;
-        // Grey background for entire canvas
-        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(vx, vy, vw, vh);
-        // Green meadow clipped to 10×10m world
-        const mx = wx(-MAX_WORLD/2), my = wy(MAX_WORLD/2);
-        ctx.save();
-        ctx.beginPath(); ctx.rect(mx, my, MAX_WORLD, MAX_WORLD); ctx.clip();
-        ctx.fillStyle = '#7fbf52'; ctx.fillRect(mx, my, MAX_WORLD, MAX_WORLD);
-        ctx.fillStyle = 'rgba(60,130,60,0.18)';
-        const seed = mulberry32(99);
-        for (let i = 0; i < 80; i++) {
-            const px = (seed()-0.5)*2*DECOR_RANGE, py = (seed()-0.5)*2*DECOR_RANGE;
-            const pr = 50 + seed()*100;
-            ctx.beginPath(); ctx.arc(wx(px), wy(py), pr, 0, Math.PI*2); ctx.fill();
-        }
-        ctx.restore();
-    }
-    function drawRiver() {
-        ctx.strokeStyle = '#5dade2'; ctx.lineWidth = 22; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.beginPath();
-        for (let i = 0; i < riverPath.length; i++) { const p = riverPath[i]; if (i===0) ctx.moveTo(wx(p.x), wy(p.y)); else ctx.lineTo(wx(p.x), wy(p.y)); }
-        ctx.stroke();
-        ctx.strokeStyle = '#aed6f1'; ctx.lineWidth = 6;
-        ctx.beginPath();
-        for (let i = 0; i < riverPath.length; i++) { const p = riverPath[i]; if (i===0) ctx.moveTo(wx(p.x), wy(p.y+4)); else ctx.lineTo(wx(p.x), wy(p.y+4)); }
-        ctx.stroke();
-    }
-    function drawTree(d){const cx=wx(d.x),cy=wy(d.y);ctx.fillStyle='#6b3e1f';ctx.fillRect(cx-d.size*0.18,cy,d.size*0.36,d.size*0.7);ctx.fillStyle=d.tone<0.5?'#2e7d32':'#388e3c';ctx.beginPath();ctx.arc(cx,cy,d.size,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1b5e20';ctx.beginPath();ctx.arc(cx-d.size*0.35,cy-d.size*0.25,d.size*0.45,0,Math.PI*2);ctx.fill();}
-    function drawBush(d){const cx=wx(d.x),cy=wy(d.y);ctx.fillStyle=d.tone<0.5?'#388e3c':'#43a047';ctx.beginPath();ctx.arc(cx-d.size*0.4,cy,d.size*0.6,0,Math.PI*2);ctx.arc(cx+d.size*0.4,cy,d.size*0.6,0,Math.PI*2);ctx.arc(cx,cy-d.size*0.4,d.size*0.6,0,Math.PI*2);ctx.fill();}
-    function drawFlower(d){const cx=wx(d.x),cy=wy(d.y);ctx.fillStyle=d.tone<0.33?'#fff59d':(d.tone<0.66?'#f48fb1':'#ce93d8');for(let k=0;k<5;k++){const a=k*Math.PI*2/5;ctx.beginPath();ctx.arc(cx+Math.cos(a)*d.size*0.25,cy+Math.sin(a)*d.size*0.25,d.size*0.18,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#fbc02d';ctx.beginPath();ctx.arc(cx,cy,d.size*0.15,0,Math.PI*2);ctx.fill();}
-    function drawDecorations(){for(const d of decorations){if(d.kind==='tree')drawTree(d);else if(d.kind==='bush')drawBush(d);else drawFlower(d);}}
 
     // ====================================================== room outline
 
@@ -266,8 +106,6 @@
         const hw = MAX_WORLD / 2, hh = MAX_WORLD / 2;
         const cw2 = canvas.width / 2, ch2 = canvas.height / 2;
         const mx = canvas.width * margin, my = canvas.height * margin;
-        // World left edge screen pos:  scale*(cw2 - hw) + posX  ≥ -mx
-        // World right edge screen pos: scale*(cw2 + hw) + posX  ≤ canvas.width + mx
         const minPosX = -(scale * (cw2 + hw)) + canvas.width - mx;
         const maxPosX = -(scale * (cw2 - hw)) + mx;
         const minPosY = -(scale * (ch2 + hh)) + canvas.height - my;
@@ -513,7 +351,6 @@
         ctx.save();
         ctx.globalAlpha = snapped ? 0.85 : 0.55;
         fillPolygon(path, snapped ? '#90caf9' : '#bbdefb');
-        // lightweight rails for ghost: skip — keep it cheap
         ctx.restore();
         ctx.save();
         ctx.strokeStyle = snapped ? '#1565c0' : '#5c6bc0';
@@ -530,12 +367,7 @@
         ctx.setTransform(scale, 0, 0, scale, posX, posY);
         ctx.clearRect(-posX/scale, -posY/scale, canvas.width/scale, canvas.height/scale);
 
-        drawMeadow();
-        // Clip river + decorations to the 10×10m world
-        ctx.save();
-        ctx.beginPath(); ctx.rect(wx(-MAX_WORLD/2), wy(MAX_WORLD/2), MAX_WORLD, MAX_WORLD); ctx.clip();
-        drawRiver(); drawDecorations();
-        ctx.restore();
+        drawScenery();
         drawRoom();
 
         for (const p of pieces) {
@@ -650,15 +482,8 @@
 
     // ====================================================== free endings (excluding a piece)
     function freeEndingsExcluding(pieceId) {
-        // Build directly from the current view: any ending marked free that
-        // belongs to a piece other than `pieceId`. We re-derive freeness
-        // ignoring pieces[pieceId]'s endings — but the server's view already
-        // computed it including all pieces. For the snap preview we want to
-        // pretend the dragged piece is invisible. Approximate: trust the
-        // server's `free`, and additionally allow snapping onto endings that
-        // are *currently* connected to the dragged piece (treat them as free).
         const out = [];
-        const myConns = new Set(); // endings of other pieces currently locked to me
+        const myConns = new Set();
         for (const c of connections) {
             if (c[0].piece_id === pieceId) myConns.add(`${c[1].piece_id}:${c[1].ending_idx}`);
             else if (c[1].piece_id === pieceId) myConns.add(`${c[0].piece_id}:${c[0].ending_idx}`);
@@ -691,11 +516,8 @@
             hit,
             shiftKey: ev.shiftKey,
             startScale: scale, startPosX: posX, startPosY: posY,
-            // For drag-piece state once promoted:
             dragPiece: null, dragOrigPose: null, dragAnchorIdx: null,
-            // For pan:
             panActive: !hit,
-            // Long-press timer for piece tap-to-drag.
             longPressTimer: null,
             promoted: false,
             cancelled: false,
@@ -709,7 +531,6 @@
                 if (r.longPressTimer) { clearTimeout(r.longPressTimer); r.longPressTimer = null; }
                 r.panActive = false;
             }
-            // store pinch baseline
             const it = [...activePointers.values()];
             pinch.distance = Math.hypot(it[0].curX - it[1].curX, it[0].curY - it[1].curY);
             pinch.scale = scale;
@@ -724,10 +545,8 @@
             const desiredEnding = hit.endingIdx;
 
             if (ev.shiftKey) {
-                // Shift+click: toggle piece in/out of multi-selection.
                 if (multiSel.has(pid)) {
                     multiSel.delete(pid);
-                    // If we removed the primary selection, pick another.
                     if (selection && selection.piece_id === pid) {
                         if (multiSel.size > 0) {
                             const next = multiSel.values().next().value;
@@ -740,19 +559,14 @@
                     }
                 } else {
                     multiSel.add(pid);
-                    // Make this the primary selection.
                     selection = { piece_id: pid, ending_idx: desiredEnding };
                     action('select', { piece_id: pid, ending_idx: desiredEnding });
                 }
                 rec.deferCollapse = false;
             } else if (multiSel.size > 1 && multiSel.has(pid)) {
-                // Clicking on a piece already in a group: keep the group for
-                // now so a drag moves the whole group.  If the user just
-                // clicks (no drag), we collapse to single-select on pointerup.
                 selection = { piece_id: pid, ending_idx: desiredEnding };
                 rec.deferCollapse = true;
             } else {
-                // Normal click: single-select (replaces multi-sel).
                 multiSel.clear();
                 multiSel.add(pid);
                 selection = { piece_id: pid, ending_idx: desiredEnding };
@@ -763,29 +577,24 @@
             ['rotateCcw','rotateCw'].forEach(id => { document.getElementById(id).disabled = !(selection && multiSel.size <= 1); });
             document.getElementById('deleteSel').disabled = !hasSel;
             draw();
-            // Long-press → start drag (touch friendly). Mouse: drag begins on movement past slop.
             if (isCoarse) {
                 rec.longPressTimer = setTimeout(() => {
                     if (rec.cancelled) return;
                     if (!rec.promoted) startDrag(rec);
                 }, LONG_PRESS_MS);
             }
-        } else {
-            // Empty: clear selection on a click (no drag past slop).
-            // We commit the selection clear on pointerup if no movement occurred.
         }
     }
 
-    let multiDragOrigPoses = null; // Map<piece_id, {x,y,rot}> when group-dragging
+    let multiDragOrigPoses = null;
 
     function startDrag(rec) {
         if (!rec.hit) return;
         rec.promoted = true;
         rec.dragPiece = rec.hit.piece;
         rec.dragOrigPose = { x: rec.dragPiece.x, y: rec.dragPiece.y, rot: rec.dragPiece.rot };
-        rec.dragAnchorIdx = rec.hit.endingIdx; // may be null = auto
+        rec.dragAnchorIdx = rec.hit.endingIdx;
 
-        // If the dragged piece is in a multi-selection, enter group drag.
         if (multiSel.size > 1 && multiSel.has(rec.dragPiece.id)) {
             multiDragOrigPoses = new Map();
             for (const p of pieces) {
@@ -793,10 +602,9 @@
                     multiDragOrigPoses.set(p.id, { x: p.x, y: p.y, rot: p.rot });
                 }
             }
-            dragGhost = null; // no single ghost for group drag
+            dragGhost = null;
         } else {
             multiDragOrigPoses = null;
-            // initial ghost matches the current pose
             dragGhost = { type: rec.dragPiece.type, pose: { ...rec.dragOrigPose }, anchorIdx: rec.dragAnchorIdx, snapTarget: null };
         }
         draw();
@@ -804,7 +612,6 @@
 
     function cancelDrag(rec) {
         if (rec.dragPiece) {
-            // Restore group-drag pieces to their original positions.
             if (multiDragOrigPoses) {
                 for (const p of pieces) {
                     const orig = multiDragOrigPoses.get(p.id);
@@ -853,12 +660,10 @@
             const deltaY = world.y - startWorld.y;
 
             if (multiDragOrigPoses) {
-                // Group drag: move all selected pieces in-place for live preview.
                 for (const p of pieces) {
                     const orig = multiDragOrigPoses.get(p.id);
                     if (orig) { p.x = orig.x + deltaX; p.y = orig.y + deltaY; }
                 }
-                // Recompute piece paths for rendering.
                 for (const p of pieces) {
                     if (!multiDragOrigPoses.has(p.id)) continue;
                     const tr = poseTransform(p.type, p.x, p.y, p.rot);
@@ -870,11 +675,10 @@
                     }));
                 }
             } else {
-                // Single-piece drag with snap preview.
                 const newPose = {
                     x: rec.dragOrigPose.x + deltaX,
                     y: rec.dragOrigPose.y + deltaY,
-                    rot: dragGhost.pose.rot, // preserve manual rotations during drag
+                    rot: dragGhost.pose.rot,
                 };
                 const tol = snapTol + (isCoarse ? 14 : 6) / scale;
                 const targets = freeEndingsExcluding(rec.dragPiece.id);
@@ -903,10 +707,9 @@
         if (rec.longPressTimer) { clearTimeout(rec.longPressTimer); rec.longPressTimer = null; }
         canvas.releasePointerCapture && canvas.releasePointerCapture(ev.pointerId);
 
-        if (activePointers.size > 0) return; // still in multi-touch; ignore lift
+        if (activePointers.size > 0) return;
 
         if (rec.dragPiece && multiDragOrigPoses) {
-            // Group drag commit: send all moved pieces to the server.
             const moves = [];
             for (const p of pieces) {
                 if (!multiDragOrigPoses.has(p.id)) continue;
@@ -931,7 +734,6 @@
             return;
         }
 
-        // Deferred collapse: user clicked on a group member without dragging.
         if (rec.deferCollapse && !rec.promoted) {
             const pid = rec.hit && rec.hit.piece ? rec.hit.piece.id : null;
             if (pid !== null) {
@@ -950,7 +752,6 @@
         if (rec.panActive) {
             if (dist > SLOP_PX) saveView();
             else if (!rec.shiftKey) {
-                // Tap on empty canvas → clear selection (but not when Shift held).
                 if (selection || multiSel.size > 0) {
                     selection = null;
                     multiSel.clear();
@@ -980,7 +781,6 @@
     }
 
     // ----- pinch zoom -----
-    /** Minimum zoom: the larger canvas side must not show more than MAX_WORLD units. */
     function minScale() {
         const larger = isCoarse ? canvas.height : canvas.width;
         return larger > 0 ? larger / MAX_WORLD : 0.1;
@@ -998,7 +798,6 @@
         posX = cx - (cx - posX) * ratio;
         posY = cy - (cy - posY) * ratio;
         scale = newScale;
-        // Update pan from finger midpoint translation
         const newMidX = (it[0].curX + it[1].curX)/2;
         const newMidY = (it[0].curY + it[1].curY)/2;
         posX += (newMidX - pinch.midX);
@@ -1035,11 +834,9 @@
 
     // ====================================================== palette interactions
     function paletteCenterSpawn(type) {
-        // If a piece is selected and has a free ending, snap the new piece there.
         if (selection) {
             const sel = pieces.find(p => p.id === selection.piece_id);
             if (sel) {
-                // Prefer the selected ending if it's free; otherwise pick the first free ending.
                 let freeIdx = -1;
                 if (selection.ending_idx != null && sel.endings[selection.ending_idx] && sel.endings[selection.ending_idx].free) {
                     freeIdx = selection.ending_idx;
@@ -1051,15 +848,11 @@
                 if (freeIdx >= 0) {
                     const end = sel.endings[freeIdx];
                     const targetPair = [[end.a.x, end.a.y], [end.b.x, end.b.y]];
-                    // Try every ending of the new piece as anchor; pick the
-                    // first one that doesn't visually overlap with the source.
                     const nEndings = ENDING_COUNT[type];
                     let bestPose = null;
                     for (let a = 0; a < nEndings; a++) {
                         const pose = poseAlign(type, a, targetPair);
                         bestPose = bestPose || pose;
-                        // Quick overlap test: check if the new polygon shares
-                        // interior area with the selected piece.
                         const newPts = poseTransform(type, pose.x, pose.y, pose.rot).points;
                         const selPts = sel.path.map(p => [p.x, p.y]);
                         if (!polyOverlap(newPts, selPts)) {
@@ -1072,7 +865,6 @@
                 }
             }
         }
-        // Fallback: spawn at the current view center.
         const r = canvas.getBoundingClientRect();
         const world = clientToWorld(r.left + r.width/2, r.top + r.height/2);
         action('add_piece', { type, x: world.x, y: world.y, rot: 0 });
@@ -1133,7 +925,6 @@
                 try { tile.releasePointerCapture(ev.pointerId); } catch (_) {}
                 pdownId = null;
                 if (dragging) {
-                    // Determine if drop is over the canvas.
                     const r = canvas.getBoundingClientRect();
                     if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
                         const world = clientToWorld(ev.clientX, ev.clientY);
@@ -1202,7 +993,6 @@
         if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;
         if (ev.ctrlKey && ev.key.toLowerCase() === 's') { ev.preventDefault(); action('save'); return; }
         if (ev.ctrlKey && ev.key.toLowerCase() === 'a') {
-            // Select all pieces.
             ev.preventDefault();
             multiSel.clear();
             for (const p of pieces) multiSel.add(p.id);
