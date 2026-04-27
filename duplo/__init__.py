@@ -30,7 +30,7 @@ def _build_db_uri():
         dbname = os.environ.get("DUPLO_DB_NAME", "")
         return f"mysql+pymysql://{user}:{password}@{host}/{dbname}"
 
-    return "sqlite:///duplo.db"
+    return "sqlite:///" + os.path.join(_PROJECT_ROOT, "instance", "duplo.db")
 
 
 def create_app():
