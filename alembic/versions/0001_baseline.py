@@ -1,11 +1,10 @@
-"""Baseline schema: users, tracks, pieces, connections.
+"""Baseline schema: users, tracks, pieces, editor_states.
 
-Captures the schema the app was running with prior to introducing Alembic.
-Cross-dialect (sqlite + mysql) by using SQLAlchemy types and constraints.
+Cross-dialect (sqlite + mysql) using SQLAlchemy types and constraints.
 
 Revision ID: 0001_baseline
 Revises:
-Create Date: 2026-04-24
+Create Date: 2026-04-27
 """
 from alembic import op
 import sqlalchemy as sa
@@ -48,27 +47,39 @@ def upgrade() -> None:
             sa.ForeignKey("tracks.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("idx", sa.Integer, nullable=False),
         sa.Column("piece", sa.String(10), nullable=False),
+        sa.Column("x", sa.Float, nullable=False, server_default="0"),
+        sa.Column("y", sa.Float, nullable=False, server_default="0"),
+        sa.Column("rot", sa.Integer, nullable=False, server_default="0"),
     )
     op.create_table(
-        "connections",
-        sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+        "editor_states",
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column(
             "track_id",
             sa.Integer,
             sa.ForeignKey("tracks.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("p1", sa.Integer, nullable=False),
-        sa.Column("e1", sa.Integer, nullable=False),
-        sa.Column("p2", sa.Integer, nullable=False),
-        sa.Column("e2", sa.Integer, nullable=False),
+        sa.Column("pieces_json", sa.Text, nullable=False),
+        sa.Column("selection_json", sa.Text, nullable=True),
+        sa.Column(
+            "updated_at",
+            sa.DateTime,
+            nullable=False,
+            server_default=sa.func.current_timestamp(),
+        ),
+        sa.PrimaryKeyConstraint("user_id", "track_id"),
     )
 
 
 def downgrade() -> None:
-    op.drop_table("connections")
+    op.drop_table("editor_states")
     op.drop_table("pieces")
     op.drop_table("tracks")
     op.drop_table("users")
