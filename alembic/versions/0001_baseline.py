@@ -1,7 +1,5 @@
 """Baseline schema: users, tracks, pieces, editor_states.
 
-Cross-dialect (sqlite + mysql) using SQLAlchemy types and constraints.
-
 Revision ID: 0001_baseline
 Revises:
 Create Date: 2026-04-27

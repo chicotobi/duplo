@@ -15,11 +15,7 @@ def editor_state_read(user_id, track_id):
 
 
 def editor_state_upsert(user_id, track_id, pieces_json, selection_json):
-    """Insert or replace the editor state for (user, track).
-
-    Implemented as delete-then-insert to stay portable across sqlite and
-    mysql without dialect-specific UPSERT syntax.
-    """
+    """Insert or replace the editor state for (user, track)."""
     sql(
         "DELETE FROM editor_states WHERE user_id = :user_id AND track_id = :track_id",
         user_id=user_id,

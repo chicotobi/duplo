@@ -27,7 +27,6 @@ def pieces_update(track_id, pieces):
             y=float(p["y"]),
             rot=int(p["rot"]),
         )
-        # Last inserted id (sqlite + mysql both support this).
         row = sql("select max(id) as mid from pieces where track_id = :track_id",
                   track_id=track_id)
         new_ids.append(row[0]["mid"])

@@ -2,14 +2,6 @@
 
 from ..extensions import sql
 
-# --- SQLite
-# CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, hash TEXT NOT NULL,
-# straight INTEGER, curve INTEGER, switch INTEGER, crossing INTEGER);
-
-# --- MySQL
-# CREATE TABLE users (id int NOT NULL AUTO_INCREMENT, name TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (id),
-# straight INT, curve INT, switch INT, crossing INT);
-
 
 def users_create(name, hash):
     return sql(

@@ -12,25 +12,15 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _build_db_uri():
-    """Build the SQLAlchemy DB URI from environment variables.
+    """Return the SQLAlchemy database URI.
 
-    Precedence:
-      1. ``DUPLO_DATABASE_URI`` if set (full SQLAlchemy URI).
-      2. MySQL on PythonAnywhere when ``DUPLO_DB_HOST`` is set.
-      3. Local SQLite fallback (``duplo.db`` next to this package).
+    Uses ``DUPLO_DATABASE_URI`` if set, otherwise defaults to a local
+    SQLite file at ``instance/duplo.db``.
     """
-    uri = os.environ.get("DUPLO_DATABASE_URI")
-    if uri:
-        return uri
-
-    host = os.environ.get("DUPLO_DB_HOST")
-    if host:
-        user = os.environ.get("DUPLO_DB_USER", "")
-        password = os.environ.get("DUPLO_DB_PASSWORD", "")
-        dbname = os.environ.get("DUPLO_DB_NAME", "")
-        return f"mysql+pymysql://{user}:{password}@{host}/{dbname}"
-
-    return "sqlite:///" + os.path.join(_PROJECT_ROOT, "instance", "duplo.db")
+    return os.environ.get(
+        "DUPLO_DATABASE_URI",
+        "sqlite:///" + os.path.join(_PROJECT_ROOT, "instance", "duplo.db"),
+    )
 
 
 def create_app():
@@ -51,8 +41,6 @@ def create_app():
 
     app.logger.setLevel(logging.INFO)
 
-    is_sqlite = app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
-    app.logger.info("Database backend: %s", "sqlite" if is_sqlite else "mysql")
     csrf.init_app(app)
     limiter.init_app(app)
 

@@ -2,7 +2,7 @@
 
 import os
 
-# Make sure tests never accidentally hit a real MySQL or production sqlite file.
+# Make sure tests use an in-memory database and disable security guards.
 os.environ.setdefault("DUPLO_DATABASE_URI", "sqlite:///:memory:")
 os.environ.setdefault("DUPLO_SECRET_KEY", "test-secret")
 os.environ.setdefault("DUPLO_CSRF", "0")

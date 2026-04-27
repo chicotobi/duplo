@@ -1,6 +1,6 @@
 ﻿"""Local development entrypoint.
 
-For production / PythonAnywhere, prefer ``wsgi.py``. This module exists so
+For production, prefer ``wsgi.py``. This module exists so
 ``flask --app app run`` and ``from app import app`` both keep working.
 """
 

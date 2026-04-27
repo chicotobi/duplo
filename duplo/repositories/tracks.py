@@ -2,14 +2,6 @@
 
 from ..extensions import sql
 
-# --- SQLite
-# CREATE TABLE tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL,
-# CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
-
-# --- MySQL
-# CREATE TABLE tracks (id INT NOT NULL AUTO_INCREMENT, user_id INT NOT NULL, title TEXT NOT NULL, PRIMARY KEY (id),
-# CONSTRAINT fk_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);
-
 
 def tracks_create(user_id, title):
     return sql(

@@ -1,8 +1,7 @@
 """Alembic environment.
 
 Reads the database URL from the same place the Flask app does so that
-``alembic upgrade head`` works in development, in CI, and on PythonAnywhere
-without duplicating connection configuration.
+``alembic upgrade head`` works without duplicating connection configuration.
 """
 
 from __future__ import with_statement
@@ -34,7 +33,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=url.startswith("sqlite"),
+        render_as_batch=True,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -46,11 +45,10 @@ def run_migrations_online() -> None:
     # in-memory SQLite database is shared with the application.
     existing = config.attributes.get("connection", None)
     if existing is not None:
-        is_sqlite = existing.dialect.name == "sqlite"
         context.configure(
             connection=existing,
             target_metadata=target_metadata,
-            render_as_batch=is_sqlite,
+            render_as_batch=True,
         )
         with context.begin_transaction():
             context.run_migrations()
@@ -62,11 +60,10 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        is_sqlite = connection.dialect.name == "sqlite"
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=is_sqlite,
+            render_as_batch=True,
         )
         with context.begin_transaction():
             context.run_migrations()

@@ -1,6 +1,5 @@
 """Shared SQLAlchemy extension instance and the low-level ``sql()`` helper."""
 
-from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -26,15 +25,11 @@ def sql(cmd, **params):
 
     For SELECTs returns a list of dict rows; otherwise commits and returns None.
     """
-    is_sqlite = current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
-    if "PRAGMA" in cmd and not is_sqlite:
-        return None
-
     stmt = text(cmd)
     result = db.session.execute(stmt, params or None)
 
     lowered = cmd.lstrip().lower()
-    if lowered.startswith(("insert", "update", "delete")) or "pragma" in lowered:
+    if lowered.startswith(("insert", "update", "delete", "pragma")):
         db.session.commit()
 
     if lowered.startswith("select"):
