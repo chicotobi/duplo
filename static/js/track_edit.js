@@ -164,9 +164,10 @@
     }
     resizeCanvas();
     window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+    new ResizeObserver(() => { resizeCanvas(); draw(); }).observe(canvas);
 
     const VIEW_KEY = 'duplo.editorView';
-    let scale = 1, posX = 0, posY = 0;
+    let scale = 2, posX = 0, posY = 0;
     try {
         const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null');
         if (saved && typeof saved.scale === 'number') { scale = saved.scale; posX = saved.posX; posY = saved.posY; }
@@ -503,7 +504,8 @@
     function animate(now) {
         const dt = Math.min((now - lastFrameT)/1000, 0.05);
         lastFrameT = now;
-        if (trainPath) { trainS += 70*dt; draw(); }
+        if (trainPath) { trainS += 70*dt; }
+        draw();
         requestAnimationFrame(animate);
     }
 
@@ -936,8 +938,8 @@
     }, { passive: false });
 
     // Double-click resets the view.
-    canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); scale = 1; posX = 0; posY = 0; saveView(); draw(); });
-    document.getElementById('resetView').addEventListener('click', () => { scale = 1; posX = 0; posY = 0; saveView(); draw(); });
+    canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); scale = 2; posX = 0; posY = 0; saveView(); draw(); });
+    document.getElementById('resetView').addEventListener('click', () => { scale = 2; posX = 0; posY = 0; saveView(); draw(); });
 
     // ====================================================== palette interactions
     function paletteCenterSpawn(type) {

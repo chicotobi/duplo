@@ -77,3 +77,30 @@ def test_track_create_and_open_round_trip(client, app, user_id):
     r = client.get("/track_open")
     assert r.status_code == 200
     assert b"Loop1" in r.data
+
+
+def test_register_adopts_sandbox_track(client, app):
+    """Sandbox pieces created before registration are saved as a track."""
+    # 1. Add a piece in the sandbox
+    r = client.post(
+        "/sandbox/action",
+        json={"op": "add_piece", "type": "straight", "x": 100, "y": 50, "rot": 0},
+    )
+    assert r.json["ok"]
+
+    # 2. Register a new account
+    r = client.post(
+        "/user_register",
+        data={"name": "newbie", "password": "pw", "confirmation": "pw"},
+    )
+    assert r.status_code == 302
+
+    # 3. The user should now have a track named "Sandbox"
+    with app.app_context():
+        from duplo.repositories.users import users_read
+        from duplo.repositories.tracks import tracks_read
+
+        uid = users_read("newbie")[0]["id"]
+        tracks = tracks_read(uid)
+        assert len(tracks) == 1
+        assert tracks[0]["title"] == "Sandbox"

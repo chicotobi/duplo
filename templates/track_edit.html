@@ -15,7 +15,12 @@
             {% if view_model.is_closed %}&#10004; Closed loop{% else %}&#9888; Open ends{% endif %}
         </span>
         <span style="flex:1"></span>
+        {% if is_anonymous %}
+        <a href="{{ url_for('users.user_login') }}" class="btn btn-outline-primary btn-sm">Log in</a>
+        <a href="{{ url_for('users.user_register') }}" class="btn btn-primary btn-sm">Register</a>
+        {% else %}
         <button type="button" class="icon-btn" id="saveBtn" title="Save (Ctrl+S)">&#128190;</button>
+        {% endif %}
         <button type="button" class="icon-btn" id="resetView" title="Reset view (double-click canvas)">&#8634;</button>
     </div>
 
