@@ -110,8 +110,7 @@ def switch_svg() -> str:
         f'<path d="M 0 20 A {R} {R} 0 0 1 42 -22"/>'
         f'</g>'
         # ballast (grey)
-        f'<g fill="none" stroke="{STROKE_BALLAST}" stroke-width="{BALLAST_W}" '
-        f'stroke-linecap="round">'
+        f'<g fill="none" stroke="{STROKE_BALLAST}" stroke-width="{BALLAST_W}">'
         f'<line x1="0" y1="48" x2="0" y2="20"/>'
         f'<path d="M 0 20 A {R} {R} 0 0 0 -42 -22"/>'
         f'<path d="M 0 20 A {R} {R} 0 0 1 42 -22"/>'
