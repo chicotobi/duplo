@@ -14,7 +14,7 @@ from ..repositories.tracks import (
     tracks_read_title,
     tracks_update_title,
 )
-from ..repositories.users import users_library_read
+from ..repositories.users import users_library_read, users_room_read
 from ..services import editor_storage
 from ..services.editor import LayoutEditor
 from ..services.thumbnails import (
@@ -120,12 +120,15 @@ def track_edit():
     editor_storage.save(user_id, editor)
 
     user_lib = session["user_lib"]
+    room = users_room_read(user_id)[0]
     return render_template(
         "track_edit.html",
         title=track_title,
         user_lib=user_lib,
         view_model=editor.view_model(user_lib),
         is_anonymous=False,
+        room_w=room["room_w"],
+        room_h=room["room_h"],
     )
 
 

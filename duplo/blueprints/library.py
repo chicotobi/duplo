@@ -3,7 +3,7 @@
 from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from ..auth import error, login_required
-from ..repositories.users import users_library_read, users_library_set
+from ..repositories.users import users_library_read, users_library_set, users_room_set
 
 bp = Blueprint("library", __name__)
 
@@ -37,6 +37,23 @@ def library_set():
     # Update the cached library so the editor sees the new values.
     session["user_lib"] = users_library_read(user_id)[0]
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify(ok=True)
+    return redirect("/user_info")
+
+
+@bp.route("/room_set", methods=["POST"])
+@login_required
+def room_set():
+    user_id = session["user_id"]
+    try:
+        room_w = int(request.form.get("room_w", 6))
+        room_h = int(request.form.get("room_h", 4))
+    except (ValueError, TypeError):
+        return error("Invalid room dimensions")
+    room_w = max(1, min(10, room_w))
+    room_h = max(1, min(10, room_h))
+    users_room_set(user_id, room_w, room_h)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify(ok=True)
     return redirect("/user_info")

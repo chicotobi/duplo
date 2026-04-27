@@ -5,8 +5,8 @@ from ..extensions import sql
 
 def users_create(name, hash):
     return sql(
-        "insert into users (name, hash, straight, curve, switch, crossing)"
-        " values (:name, :hash, 8, 12, 2, 1)",
+        "insert into users (name, hash, straight, curve, switch, crossing, room_w, room_h)"
+        " values (:name, :hash, 8, 12, 2, 1, 6, 4)",
         name=name, hash=hash,
     )
 
@@ -45,4 +45,18 @@ def users_library_read(user_id):
     return sql(
         "select straight, curve, switch, crossing from users where id = :id",
         id=user_id,
+    )
+
+
+def users_room_read(user_id):
+    return sql(
+        "select room_w, room_h from users where id = :id",
+        id=user_id,
+    )
+
+
+def users_room_set(user_id, room_w, room_h):
+    return sql(
+        "update users set room_w = :room_w, room_h = :room_h where id = :id",
+        room_w=int(room_w), room_h=int(room_h), id=user_id,
     )

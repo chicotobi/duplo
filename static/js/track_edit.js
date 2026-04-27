@@ -163,11 +163,26 @@
         canvas.height = rect.height;
     }
     resizeCanvas();
-    window.addEventListener('resize', () => { resizeCanvas(); draw(); });
-    new ResizeObserver(() => { resizeCanvas(); draw(); }).observe(canvas);
+    window.addEventListener('resize', () => { resizeCanvas(); clampPan(); draw(); });
+    let needsInitialCenter = true;
+    new ResizeObserver(() => {
+        resizeCanvas();
+        if (needsInitialCenter && canvas.width > 0 && canvas.height > 0) {
+            needsInitialCenter = false;
+            if (!sessionStorage.getItem(VIEW_KEY)) centerView();
+            else clampPan();
+        }
+        draw();
+    }).observe(canvas);
 
     const VIEW_KEY = 'duplo.editorView';
-    let scale = 2, posX = 0, posY = 0;
+    const DEFAULT_SCALE = 2;
+    let scale = DEFAULT_SCALE, posX = 0, posY = 0;
+    function centerView() {
+        posX = canvas.width / 2 * (1 - scale);
+        posY = canvas.height / 2 * (1 - scale);
+        if (canvas.width > 0) clampPan();
+    }
     try {
         const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null');
         if (saved && typeof saved.scale === 'number') { scale = saved.scale; posX = saved.posX; posY = saved.posY; }
@@ -185,12 +200,22 @@
         return { x: sx - canvas.width/2, y: -(sy - canvas.height/2) };
     }
 
-    // ====================================================== scenery (kept from previous version)
+    // ====================================================== room / world constants
+    // 1 internal unit = 3.2 mm (l0=40 units = 128 mm real).
+    const MM_PER_UNIT = 128 / L0;  // 3.2
+    const roomWMeters = window.EDITOR_ROOM_W || 6;
+    const roomHMeters = window.EDITOR_ROOM_H || 4;
+    const ROOM_W = roomWMeters * 1000 / MM_PER_UNIT;
+    const ROOM_H = roomHMeters * 1000 / MM_PER_UNIT;
+    // Max visible area = 10×10 m
+    const MAX_WORLD = 10 * 1000 / MM_PER_UNIT;  // ~3125 units
+
+    // ====================================================== scenery
     function mulberry32(seed) { return function () { let t = seed += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
     const _rand = mulberry32(20240507);
-    const DECOR_RANGE = 1200;
+    const DECOR_RANGE = MAX_WORLD / 2;
     const decorations = [];
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < 600; i++) {
         const r = _rand();
         let kind = r < 0.45 ? 'tree' : (r < 0.85 ? 'bush' : 'flower');
         decorations.push({ x: (_rand()-0.5)*2*DECOR_RANGE, y: (_rand()-0.5)*2*DECOR_RANGE, kind, size: 7+_rand()*9, tone: _rand() });
@@ -199,16 +224,23 @@
     for (let i = -DECOR_RANGE; i <= DECOR_RANGE; i += 25) riverPath.push({ x: i, y: -380 + 35*Math.sin(i*0.012) + 10*Math.cos(i*0.04) });
 
     function drawMeadow() {
-        const x0 = -posX/scale, y0 = -posY/scale;
-        const w = canvas.width/scale, h = canvas.height/scale;
-        ctx.fillStyle = '#7fbf52'; ctx.fillRect(x0, y0, w, h);
+        const vx = -posX/scale, vy = -posY/scale;
+        const vw = canvas.width/scale, vh = canvas.height/scale;
+        // Grey background for entire canvas
+        ctx.fillStyle = '#d0d0d0'; ctx.fillRect(vx, vy, vw, vh);
+        // Green meadow clipped to 10×10m world
+        const mx = wx(-MAX_WORLD/2), my = wy(MAX_WORLD/2);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(mx, my, MAX_WORLD, MAX_WORLD); ctx.clip();
+        ctx.fillStyle = '#7fbf52'; ctx.fillRect(mx, my, MAX_WORLD, MAX_WORLD);
         ctx.fillStyle = 'rgba(60,130,60,0.18)';
         const seed = mulberry32(99);
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 80; i++) {
             const px = (seed()-0.5)*2*DECOR_RANGE, py = (seed()-0.5)*2*DECOR_RANGE;
             const pr = 50 + seed()*100;
             ctx.beginPath(); ctx.arc(wx(px), wy(py), pr, 0, Math.PI*2); ctx.fill();
         }
+        ctx.restore();
     }
     function drawRiver() {
         ctx.strokeStyle = '#5dade2'; ctx.lineWidth = 22; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -224,6 +256,51 @@
     function drawBush(d){const cx=wx(d.x),cy=wy(d.y);ctx.fillStyle=d.tone<0.5?'#388e3c':'#43a047';ctx.beginPath();ctx.arc(cx-d.size*0.4,cy,d.size*0.6,0,Math.PI*2);ctx.arc(cx+d.size*0.4,cy,d.size*0.6,0,Math.PI*2);ctx.arc(cx,cy-d.size*0.4,d.size*0.6,0,Math.PI*2);ctx.fill();}
     function drawFlower(d){const cx=wx(d.x),cy=wy(d.y);ctx.fillStyle=d.tone<0.33?'#fff59d':(d.tone<0.66?'#f48fb1':'#ce93d8');for(let k=0;k<5;k++){const a=k*Math.PI*2/5;ctx.beginPath();ctx.arc(cx+Math.cos(a)*d.size*0.25,cy+Math.sin(a)*d.size*0.25,d.size*0.18,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#fbc02d';ctx.beginPath();ctx.arc(cx,cy,d.size*0.15,0,Math.PI*2);ctx.fill();}
     function drawDecorations(){for(const d of decorations){if(d.kind==='tree')drawTree(d);else if(d.kind==='bush')drawBush(d);else drawFlower(d);}}
+
+    // ====================================================== room outline
+
+    /** Clamp posX/posY so the viewport stays within the 10×10 m region. */
+    function clampPan() {
+        // Allow a small margin (20% of canvas) of grey beyond the world edge.
+        const margin = 0.2;
+        const hw = MAX_WORLD / 2, hh = MAX_WORLD / 2;
+        const cw2 = canvas.width / 2, ch2 = canvas.height / 2;
+        const mx = canvas.width * margin, my = canvas.height * margin;
+        // World left edge screen pos:  scale*(cw2 - hw) + posX  ≥ -mx
+        // World right edge screen pos: scale*(cw2 + hw) + posX  ≤ canvas.width + mx
+        const minPosX = -(scale * (cw2 + hw)) + canvas.width - mx;
+        const maxPosX = -(scale * (cw2 - hw)) + mx;
+        const minPosY = -(scale * (ch2 + hh)) + canvas.height - my;
+        const maxPosY = -(scale * (ch2 - hh)) + my;
+        posX = Math.max(Math.min(minPosX, maxPosX), Math.min(Math.max(minPosX, maxPosX), posX));
+        posY = Math.max(Math.min(minPosY, maxPosY), Math.min(Math.max(minPosY, maxPosY), posY));
+    }
+
+    function drawRoom() {
+        const rx = wx(-ROOM_W / 2), ry = wy(ROOM_H / 2);
+        const vx = -posX / scale, vy = -posY / scale;
+        const vw = canvas.width / scale, vh = canvas.height / scale;
+
+        // Fog outside the room: fill the visible area, then cut out the room
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.rect(vx, vy, vw, vh);           // outer (visible canvas)
+        ctx.rect(rx, ry, ROOM_W, ROOM_H);   // inner (room) — wound opposite
+        ctx.fill('evenodd');
+
+        // Dashed border
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1.5 / scale;
+        ctx.setLineDash([8 / scale, 6 / scale]);
+        ctx.strokeRect(rx, ry, ROOM_W, ROOM_H);
+        ctx.setLineDash([]);
+
+        // Label
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.font = `${12 / scale}px sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(`${roomWMeters} × ${roomHMeters} m`, rx + 6 / scale, ry + 4 / scale);
+    }
 
     // ====================================================== piece rendering
     function fillPolygon(path, color) {
@@ -453,7 +530,13 @@
         ctx.setTransform(scale, 0, 0, scale, posX, posY);
         ctx.clearRect(-posX/scale, -posY/scale, canvas.width/scale, canvas.height/scale);
 
-        drawMeadow(); drawRiver(); drawDecorations();
+        drawMeadow();
+        // Clip river + decorations to the 10×10m world
+        ctx.save();
+        ctx.beginPath(); ctx.rect(wx(-MAX_WORLD/2), wy(MAX_WORLD/2), MAX_WORLD, MAX_WORLD); ctx.clip();
+        drawRiver(); drawDecorations();
+        ctx.restore();
+        drawRoom();
 
         for (const p of pieces) {
             fillPolygon(p.path, '#616161');
@@ -753,6 +836,7 @@
         if (rec.panActive) {
             posX = rec.startPosX + dx;
             posY = rec.startPosY + dy;
+            clampPan();
             draw();
             return;
         }
@@ -896,13 +980,18 @@
     }
 
     // ----- pinch zoom -----
+    /** Minimum zoom: the larger canvas side must not show more than MAX_WORLD units. */
+    function minScale() {
+        const larger = isCoarse ? canvas.height : canvas.width;
+        return larger > 0 ? larger / MAX_WORLD : 0.1;
+    }
     const pinch = { distance: 0, scale: 1, midX: 0, midY: 0, posX: 0, posY: 0 };
     function handlePinch() {
         const it = [...activePointers.values()];
         if (it.length < 2) return;
         const d = Math.hypot(it[0].curX - it[1].curX, it[0].curY - it[1].curY);
         if (pinch.distance <= 0) return;
-        const newScale = Math.min(10, Math.max(0.1, (d / pinch.distance) * pinch.scale));
+        const newScale = Math.min(10, Math.max(minScale(), (d / pinch.distance) * pinch.scale));
         const r = canvas.getBoundingClientRect();
         const cx = pinch.midX - r.left, cy = pinch.midY - r.top;
         const ratio = newScale / scale;
@@ -915,6 +1004,7 @@
         posX += (newMidX - pinch.midX);
         posY += (newMidY - pinch.midY);
         pinch.midX = newMidX; pinch.midY = newMidY;
+        clampPan();
         draw();
     }
 
@@ -929,18 +1019,19 @@
         ev.preventDefault();
         const delta = ev.deltaY < 0 ? 1.1 : 0.9;
         const ns = scale * delta;
-        if (ns < 0.1 || ns > 10) return;
+        if (ns < minScale() || ns > 10) return;
         const r = canvas.getBoundingClientRect();
         const mx = ev.clientX - r.left, my = ev.clientY - r.top;
         posX -= (mx - posX) * (delta - 1);
         posY -= (my - posY) * (delta - 1);
         scale = ns;
+        clampPan();
         saveView(); draw();
     }, { passive: false });
 
     // Double-click resets the view.
-    canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); scale = 2; posX = 0; posY = 0; saveView(); draw(); });
-    document.getElementById('resetView').addEventListener('click', () => { scale = 2; posX = 0; posY = 0; saveView(); draw(); });
+    canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); scale = DEFAULT_SCALE; centerView(); saveView(); draw(); });
+    document.getElementById('resetView').addEventListener('click', () => { scale = DEFAULT_SCALE; centerView(); saveView(); draw(); });
 
     // ====================================================== palette interactions
     function paletteCenterSpawn(type) {

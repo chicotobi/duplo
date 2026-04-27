@@ -13,6 +13,8 @@ from ..repositories.users import (
     users_read,
     users_read_by_id,
     users_read_hash,
+    users_room_read,
+    users_room_set,
 )
 from ..services import editor_storage
 from ..services.editor import LayoutEditor
@@ -25,7 +27,8 @@ bp = Blueprint("users", __name__)
 def user_info():
     name = users_read_by_id(id=session["user_id"])[0]["name"]
     user_lib = users_library_read(session["user_id"])[0]
-    return render_template("user_info.html", name=name, user_lib=user_lib)
+    room = users_room_read(session["user_id"])[0]
+    return render_template("user_info.html", name=name, user_lib=user_lib, room=room)
 
 
 @bp.route("/user_register", methods=["GET", "POST"])

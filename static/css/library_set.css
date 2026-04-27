@@ -108,3 +108,27 @@
 }
 .stepper input::-webkit-outer-spin-button,
 .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Room size form */
+.room-form {
+    text-align: center;
+    margin-top: 24px;
+}
+.room-form h3 {
+    margin: 0 0 12px;
+    color: #333;
+}
+.room-fields {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.room-x {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #666;
+}
+.room-unit {
+    font-size: 0.95em;
+    color: #888;
+}

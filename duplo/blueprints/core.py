@@ -24,6 +24,8 @@ def index():
         user_lib=_DEFAULT_LIB,
         view_model=editor.view_model(_DEFAULT_LIB),
         is_anonymous=True,
+        room_w=6,
+        room_h=4,
     )
 
 

@@ -15,7 +15,7 @@ body { overflow: hidden; }
     height: 100%;
     border: none;
     display: block;
-    background: #7fbf52;
+    background: #d0d0d0;
     touch-action: none;
 }
 

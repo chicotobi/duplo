@@ -29,6 +29,27 @@
         </div>
     </form>
 
+    <form action="/room_set" method="post" class="room-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h3>&#127968; Room size</h3>
+        <div class="room-fields">
+            <div class="stepper">
+                <button type="button" class="minus" onclick="step('room_w',-1)">&minus;</button>
+                <input type="number" id="room_w" name="room_w"
+                       value="{{ room.room_w }}" min="1" max="10" required>
+                <button type="button" class="plus" onclick="step('room_w',1)">+</button>
+            </div>
+            <span class="room-x">&times;</span>
+            <div class="stepper">
+                <button type="button" class="minus" onclick="step('room_h',-1)">&minus;</button>
+                <input type="number" id="room_h" name="room_h"
+                       value="{{ room.room_h }}" min="1" max="10" required>
+                <button type="button" class="plus" onclick="step('room_h',1)">+</button>
+            </div>
+            <span class="room-unit">meters</span>
+        </div>
+    </form>
+
     <div style="margin-top:32px; display:flex; justify-content:center;">
         <form action="/user_delete" method="post"
               onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
