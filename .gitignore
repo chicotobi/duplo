@@ -5,5 +5,7 @@ __pycache__/
 flask_session/*
 myenv
 instance/duplo.db
+instance/duplo.db.bak
 duplo.db
 .pytest_cache/
+static/thumbnails/
