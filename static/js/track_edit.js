@@ -606,6 +606,7 @@
             curX: ev.clientX, curY: ev.clientY,
             startWorld: world,
             hit,
+            shiftKey: ev.shiftKey,
             startScale: scale, startPosX: posX, startPosY: posY,
             // For drag-piece state once promoted:
             dragPiece: null, dragOrigPose: null, dragAnchorIdx: null,
@@ -864,8 +865,8 @@
         const dist = Math.hypot(rec.curX - rec.startX, rec.curY - rec.startY);
         if (rec.panActive) {
             if (dist > SLOP_PX) saveView();
-            else {
-                // Tap on empty canvas → clear selection.
+            else if (!rec.shiftKey) {
+                // Tap on empty canvas → clear selection (but not when Shift held).
                 if (selection || multiSel.size > 0) {
                     selection = null;
                     multiSel.clear();
@@ -1085,7 +1086,8 @@
             }
         }
     });
-    document.getElementById('saveBtn').addEventListener('click', () => action('save'));
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', () => action('save'));
 
     // ====================================================== title rename
     document.getElementById('titlePill').addEventListener('click', () => {
