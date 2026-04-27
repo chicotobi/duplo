@@ -43,15 +43,13 @@ def create_app():
     )
 
     app.secret_key = os.environ.get("DUPLO_SECRET_KEY", "dev-only-do-not-use-in-prod")
-    app.config["DUPLO_DEBUG"] = os.environ.get("DUPLO_DEBUG", "1") == "1"
     app.config["DUPLO_DB_EDITOR_STATE"] = os.environ.get("DUPLO_DB_EDITOR_STATE", "0") == "1"
     app.config["DUPLO_ASSET_VERSION"] = os.environ.get("DUPLO_ASSET_VERSION", "dev")
     app.config["WTF_CSRF_ENABLED"] = os.environ.get("DUPLO_CSRF", "1") == "1"
     app.config["RATELIMIT_ENABLED"] = os.environ.get("DUPLO_RATELIMIT", "1") == "1"
     app.config["SQLALCHEMY_DATABASE_URI"] = _build_db_uri()
 
-    log_level = logging.DEBUG if app.config["DUPLO_DEBUG"] else logging.INFO
-    app.logger.setLevel(log_level)
+    app.logger.setLevel(logging.INFO)
 
     is_sqlite = app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
     app.logger.info("Database backend: %s", "sqlite" if is_sqlite else "mysql")

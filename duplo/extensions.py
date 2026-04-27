@@ -1,7 +1,5 @@
 """Shared SQLAlchemy extension instance and the low-level ``sql()`` helper."""
 
-import logging
-
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
@@ -32,11 +30,6 @@ def sql(cmd, **params):
     if "PRAGMA" in cmd and not is_sqlite:
         return None
 
-    logger = current_app.logger
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug("SQL: %s | params=%s", cmd, params)
-        db.session.commit()
-
     stmt = text(cmd)
     result = db.session.execute(stmt, params or None)
 
@@ -46,8 +39,6 @@ def sql(cmd, **params):
 
     if lowered.startswith("select"):
         rows = [dict(row._mapping) for row in result]
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("SQL result: %s", rows)
         return rows
 
     return None

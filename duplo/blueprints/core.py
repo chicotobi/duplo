@@ -1,12 +1,8 @@
-"""Index/debug routes + anonymous sandbox editor."""
+"""Index route + anonymous sandbox editor."""
 
-from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
-from ..auth import error
 from ..extensions import limiter
-from ..repositories.layouts import pieces_read_all
-from ..repositories.tracks import tracks_read_all
-from ..repositories.users import users_read_all
 from ..services.editor import LayoutEditor
 
 bp = Blueprint("core", __name__)
@@ -116,15 +112,3 @@ def sandbox_action():
         "view": editor.view_model(_DEFAULT_LIB),
         "extra": extra,
     })
-
-
-@bp.route("/debug")
-def debug():
-    if session.get("user_name") == "tobi":
-        return render_template(
-            "debug.html",
-            users_debug=users_read_all(),
-            tracks_debug=tracks_read_all(),
-            pieces_debug=pieces_read_all(),
-        )
-    return error("Debug only for admin")
