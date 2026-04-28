@@ -19,14 +19,6 @@
     let snapTol = view.snap_tolerance || 6;
     let userLib = window.EDITOR_USER_LIB || {};
 
-    /** Return the piece_id of a neighbor connected to `pid`, or null. */
-    function connectedNeighbor(pid) {
-        for (const [a, b] of connections) {
-            if (a.piece_id === pid) return b.piece_id;
-            if (b.piece_id === pid) return a.piece_id;
-        }
-        return null;
-    }
     const ACTION_URL = window.EDITOR_ACTION_URL;
     const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -488,6 +480,10 @@
         // Prune multiSel: remove IDs for pieces that no longer exist.
         const currentIds = new Set(pieces.map(p => p.id));
         for (const id of [...multiSel]) { if (!currentIds.has(id)) multiSel.delete(id); }
+        // Ensure the server-selected piece is in multiSel.
+        if (selection && !multiSel.has(selection.piece_id)) {
+            multiSel.add(selection.piece_id);
+        }
         buildTrainPath();
         draw();
     }
@@ -897,11 +893,13 @@
                             break;
                         }
                     }
+                    multiSel.clear();
                     action('add_piece', { type, x: bestPose.x, y: bestPose.y, rot: bestPose.rot });
                     return;
                 }
             }
         }
+        multiSel.clear();
         const r = canvas.getBoundingClientRect();
         const world = clientToWorld(r.left + r.width/2, r.top + r.height/2);
         action('add_piece', { type, x: world.x, y: world.y, rot: 0 });
@@ -966,6 +964,7 @@
                     if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
                         const world = clientToWorld(ev.clientX, ev.clientY);
                         paletteGhost = null;
+                        multiSel.clear();
                         action('add_piece', { type, x: world.x, y: world.y, rot: 0 });
                     } else {
                         paletteGhost = null; draw();
@@ -992,18 +991,11 @@
     document.getElementById('deleteSel').addEventListener('click', () => {
         if (multiSel.size > 1) {
             action('delete_pieces', { piece_ids: [...multiSel] });
-            multiSel.clear(); selection = null;
         } else if (selection) {
-            const neighbor = connectedNeighbor(selection.piece_id);
-            multiSel.delete(selection.piece_id);
             action('delete_piece', { piece_id: selection.piece_id });
-            if (neighbor) {
-                selection = { piece_id: neighbor, ending_idx: null };
-                multiSel.add(neighbor);
-            } else {
-                selection = null;
-            }
         }
+        multiSel.clear();
+        selection = null;
     });
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) saveBtn.addEventListener('click', () => action('save'));
@@ -1065,18 +1057,11 @@
                 ev.preventDefault();
                 if (multiSel.size > 1) {
                     action('delete_pieces', { piece_ids: [...multiSel] });
-                    multiSel.clear(); selection = null;
                 } else if (selection) {
-                    const neighbor = connectedNeighbor(selection.piece_id);
-                    multiSel.delete(selection.piece_id);
                     action('delete_piece', { piece_id: selection.piece_id });
-                    if (neighbor) {
-                        selection = { piece_id: neighbor, ending_idx: null };
-                        multiSel.add(neighbor);
-                    } else {
-                        selection = null;
-                    }
                 }
+                multiSel.clear();
+                selection = null;
                 break;
             case 'Escape':
                 ev.preventDefault(); selection = null; multiSel.clear();

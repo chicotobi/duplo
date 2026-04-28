@@ -25,6 +25,7 @@ from ..repositories.layouts import (
     layouts_parse,
     pieces_update,
 )
+
 from .geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
