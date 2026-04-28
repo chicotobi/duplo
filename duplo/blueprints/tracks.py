@@ -227,3 +227,12 @@ def track_edit_action():
         "view": editor.view_model(user_lib),
         "extra": extra,
     })
+
+
+@bp.route("/track_edit/close", methods=["POST"])
+@login_required
+def track_edit_close():
+    user_id = session["user_id"]
+    track_id = session["track_id"]
+    editor_storage.clear(user_id, track_id)
+    return redirect("/track_open")

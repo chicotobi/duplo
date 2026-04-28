@@ -1007,6 +1007,18 @@
     });
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) saveBtn.addEventListener('click', () => action('save'));
+    const closeBtn = document.getElementById('closeBtn');
+    if (closeBtn) closeBtn.addEventListener('click', () => {
+        if (!confirm('Close without saving? Unsaved changes will be lost.')) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = ACTION_URL.replace(/\/action$/, '/close');
+        const tok = document.createElement('input');
+        tok.type = 'hidden'; tok.name = 'csrf_token'; tok.value = csrfToken;
+        form.appendChild(tok);
+        document.body.appendChild(form);
+        form.submit();
+    });
 
     // ====================================================== title rename
     document.getElementById('titlePill').addEventListener('click', () => {
