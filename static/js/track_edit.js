@@ -8,8 +8,6 @@
     const { W0, L0, C0, ENDING_COUNT, PIECE_TYPES, MM_PER_UNIT, MAX_WORLD,
             poseTransform, poseAlign, midpoint, localSnap } = window.TE;
     const sceneryTile = window.TE.sceneryTile;  // Image element (tiles/meadow.png)
-    const TILE_W = window.TE.TILE_W;
-    const TILE_H = window.TE.TILE_H;
 
     // ====================================================== state & data
     let view = window.EDITOR_DATA || {};
@@ -98,6 +96,18 @@
 
         if (!sceneryTile.complete) return;  // image not loaded yet
 
+        const TILE_W = window.TE.TILE_W;
+        const TILE_H = window.TE.TILE_H;
+        if (!TILE_W || !TILE_H) return;  // dimensions not yet derived
+
+        // Clip scenery to the 10×10 m world boundary.
+        const whw = MAX_WORLD / 2, whh = MAX_WORLD / 2;
+        const bx = wx(-whw), by = wy(whh);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(bx, by, MAX_WORLD, MAX_WORLD);
+        ctx.clip();
+
         // Visible world bounds
         const worldL = vx - canvas.width / 2;
         const worldT = -(vy - canvas.height / 2);
@@ -116,6 +126,12 @@
                 ctx.drawImage(sceneryTile, tx, ty, TILE_W, TILE_H);
             }
         }
+        ctx.restore();
+
+        // Solid black border around the world boundary.
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2 / scale;
+        ctx.strokeRect(bx, by, MAX_WORLD, MAX_WORLD);
     }
 
     // ====================================================== room outline

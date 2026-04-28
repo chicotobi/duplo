@@ -18,9 +18,8 @@ from PIL import Image, ImageDraw
 
 # ── world constants (must match app) ──
 MM_PER_UNIT = 3.2
-ROOM_W_M, ROOM_H_M = 6, 4
-TILE_W = ROOM_W_M * 1000 / MM_PER_UNIT   # 1875 world-units
-TILE_H = ROOM_H_M * 1000 / MM_PER_UNIT   # 1250 world-units
+TILE_W = 1875   # world-units
+TILE_H = 1250   # world-units
 RES = 2
 PX_W, PX_H = int(TILE_W * RES), int(TILE_H * RES)
 
