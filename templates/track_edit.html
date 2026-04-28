@@ -50,6 +50,7 @@
     window.EDITOR_ANONYMOUS = {{ 'true' if is_anonymous else 'false' }};
     window.EDITOR_ROOM_W = {{ room_w }};
     window.EDITOR_ROOM_H = {{ room_h }};
+    window.EDITOR_TILE_URL = "{{ asset_url('tiles/meadow.png') }}";
 </script>
 <script src="{{ asset_url('js/track_edit_geometry.js') }}"></script>
 <script src="{{ asset_url('js/track_edit_scenery.js') }}"></script>

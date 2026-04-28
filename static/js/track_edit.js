@@ -7,7 +7,9 @@
     // ====================================================== imports from geometry / scenery modules
     const { W0, L0, C0, ENDING_COUNT, PIECE_TYPES, MM_PER_UNIT, MAX_WORLD,
             poseTransform, poseAlign, midpoint, localSnap } = window.TE;
-    const sceneryBitmap = window.TE.sceneryCanvas;
+    const sceneryTile = window.TE.sceneryTile;  // Image element (tiles/meadow.png)
+    const TILE_W = window.TE.TILE_W;
+    const TILE_H = window.TE.TILE_H;
 
     // ====================================================== state & data
     let view = window.EDITOR_DATA || {};
@@ -86,15 +88,34 @@
     const ROOM_W = roomWMeters * 1000 / MM_PER_UNIT;
     const ROOM_H = roomHMeters * 1000 / MM_PER_UNIT;
 
-    // ====================================================== scenery (bitmap blit)
+    // ====================================================== scenery (tiled bitmap)
     function drawScenery() {
-        // Grey background covering the full visible canvas
         const vx = -posX / scale, vy = -posY / scale;
         const vw = canvas.width / scale, vh = canvas.height / scale;
+        // Grey background
         ctx.fillStyle = '#d0d0d0';
         ctx.fillRect(vx, vy, vw, vh);
-        // Blit the pre-rendered scenery bitmap into the world region
-        ctx.drawImage(sceneryBitmap, wx(-MAX_WORLD / 2), wy(MAX_WORLD / 2), MAX_WORLD, MAX_WORLD);
+
+        if (!sceneryTile.complete) return;  // image not loaded yet
+
+        // Visible world bounds
+        const worldL = vx - canvas.width / 2;
+        const worldT = -(vy - canvas.height / 2);
+
+        // Tile the image. The tile origin aligns with the room centre:
+        //   tile (0,0) sits at world (-TILE_W/2, TILE_H/2)  (top-left corner of room).
+        const startCol = Math.floor((worldL + TILE_W / 2) / TILE_W);
+        const endCol   = Math.floor((worldL + vw + TILE_W / 2) / TILE_W);
+        const startRow = Math.floor((-worldT + TILE_H / 2) / TILE_H);
+        const endRow   = Math.floor((-worldT + vh + TILE_H / 2) / TILE_H);
+
+        for (let row = startRow; row <= endRow; row++) {
+            for (let col = startCol; col <= endCol; col++) {
+                const tx = wx(-TILE_W / 2 + col * TILE_W);
+                const ty = wy(TILE_H / 2 - row * TILE_H);
+                ctx.drawImage(sceneryTile, tx, ty, TILE_W, TILE_H);
+            }
+        }
     }
 
     // ====================================================== room outline
