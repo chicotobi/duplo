@@ -33,7 +33,6 @@ from .geometry import (
     polygons_overlap,
     snap_pose,
     w0,
-    world_endings_for_pose,
     world_polygon,
 )
 from .thumbnails import generate_thumbnail
@@ -174,9 +173,9 @@ class LayoutEditor:
     def rotate_piece(self, piece_id, delta_steps=1):
         p = self._piece(piece_id)
 
-        # Smart rotate: if the piece has exactly one connected ending,
-        # try to pivot around that connection so a free ending snaps to
-        # a nearby free target ending.
+        # Smart rotate: if the piece has exactly one connected ending and
+        # free endings, cycle which ending is connected to the same anchor
+        # point on the neighbor.
         _, all_eds, _ = self._build()
         conns = layouts_connections(all_eds)
 
@@ -188,63 +187,41 @@ class LayoutEditor:
             elif b[0] == piece_id:
                 connected.append((b[1], a[0], a[1]))
 
-        if len(connected) == 1 and ending_count[p["type"]] > 1:
+        n_endings = ending_count[p["type"]]
+        n_free = n_endings - len(connected)
+
+        if len(connected) == 1 and n_free > 0:
             my_conn_eidx, other_pid, other_eidx = connected[0]
-            # The target pair our connected ending must stay aligned to.
+            # The target pair on the neighbor that we must stay connected to.
             pivot_pair = all_eds[other_pid][other_eidx]
 
-            # Collect free target endings (excluding this piece).
-            free = layouts_free_endings(all_eds, conns)
-            free_targets = []
-            for (fpid, feidx) in free:
-                if fpid == piece_id:
-                    continue
-                pair = all_eds[fpid][feidx]
-                free_targets.append((fpid, feidx, pair))
-
-            # For each of our free endings, try aligning to each free target.
-            my_free = [ei for ei in range(ending_count[p["type"]])
-                       if ei != my_conn_eidx]
+            # Try each of the piece's other endings as the new connection.
             candidates = []
-            for my_eidx in my_free:
-                for (fpid, feidx, tpair) in free_targets:
-                    x, y, rot = _pose_to_align(p["type"], my_eidx, tpair)
-                    # Verify the connected ending still fits the pivot.
-                    check_eds = world_endings_for_pose(p["type"], x, y, rot)
-                    conn_ed = check_eds[my_conn_eidx]
-                    conn_mid = ((conn_ed[0][0] + conn_ed[1][0]) * 0.5,
-                                (conn_ed[0][1] + conn_ed[1][1]) * 0.5)
-                    piv_mid = ((pivot_pair[0][0] + pivot_pair[1][0]) * 0.5,
-                               (pivot_pair[0][1] + pivot_pair[1][1]) * 0.5)
-                    dist2 = (conn_mid[0] - piv_mid[0]) ** 2 + (conn_mid[1] - piv_mid[1]) ** 2
-                    if dist2 > SNAP_TOLERANCE ** 2:
+            for eidx in range(n_endings):
+                if eidx == my_conn_eidx:
+                    continue
+                x, y, rot = _pose_to_align(p["type"], eidx, pivot_pair)
+                # Check no overlap with other pieces.
+                new_poly = world_polygon(p["type"], x, y, rot)
+                overlap = False
+                for op in self.pieces:
+                    if op["id"] == piece_id:
                         continue
-                    # Check no overlap with other pieces.
-                    new_poly = world_polygon(p["type"], x, y, rot)
-                    overlap = False
-                    for op in self.pieces:
-                        if op["id"] == piece_id:
-                            continue
-                        op_poly = world_polygon(op["type"], op["x"], op["y"], op["rot"])
-                        if polygons_overlap(new_poly, op_poly):
-                            overlap = True
-                            break
-                    if overlap:
-                        continue
-                    # Rotation delta from current.
-                    rd = (rot - p["rot"]) % 12
-                    candidates.append((rd, x, y, rot))
+                    op_poly = world_polygon(op["type"], op["x"], op["y"], op["rot"])
+                    if polygons_overlap(new_poly, op_poly):
+                        overlap = True
+                        break
+                if overlap:
+                    continue
+                candidates.append((eidx, x, y, rot))
 
             if candidates:
-                # Pick the candidate closest in the direction of delta_steps.
-                # delta_steps > 0 is CCW, < 0 is CW.
+                # Order by ending index relative to current connected ending.
                 ds = int(delta_steps)
                 if ds > 0:
-                    # smallest positive delta
-                    candidates.sort(key=lambda c: c[0] if c[0] > 0 else 12)
+                    candidates.sort(key=lambda c: (c[0] - my_conn_eidx) % n_endings)
                 else:
-                    # largest (most negative / most CW) delta
-                    candidates.sort(key=lambda c: -c[0] if c[0] > 0 else -12)
+                    candidates.sort(key=lambda c: (my_conn_eidx - c[0]) % n_endings)
                 _, nx, ny, nr = candidates[0]
                 p["x"] = float(nx)
                 p["y"] = float(ny)
