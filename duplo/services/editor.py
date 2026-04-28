@@ -232,9 +232,24 @@ class LayoutEditor:
         p["rot"] = (p["rot"] + int(delta_steps)) % 12
 
     def delete_piece(self, piece_id):
+        # Find a connected neighbor before removing the piece.
+        neighbor_id = None
+        _, all_eds, _ = self._build()
+        conns = layouts_connections(all_eds)
+        for (a, b) in conns:
+            if a[0] == piece_id:
+                neighbor_id = b[0]
+                break
+            if b[0] == piece_id:
+                neighbor_id = a[0]
+                break
+
         self.pieces = [p for p in self.pieces if p["id"] != piece_id]
         if self.selection and self.selection["piece_id"] == piece_id:
-            self.selection = None
+            if neighbor_id is not None:
+                self.selection = {"piece_id": neighbor_id, "ending_idx": None}
+            else:
+                self.selection = None
 
     def delete_pieces(self, piece_ids):
         """Batch-delete several pieces at once."""
