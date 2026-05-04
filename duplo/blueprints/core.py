@@ -103,6 +103,32 @@ def sandbox_action():
                           None if ending_idx is None else int(ending_idx))
         elif op == "clear_selection":
             editor.clear_selection()
+        elif op == "check_force_connection":
+            result = editor.check_force_connection(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+            )
+            extra["force_connection_candidate"] = result
+        elif op == "force_connect":
+            result = editor.force_connect(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+                int(payload.get("ending1_idx")),
+                int(payload.get("ending2_idx")),
+            )
+            if not result["success"]:
+                return jsonify({"ok": False, "error": result.get("error", "Failed to force connect")}), 400
+            extra["forced_connections"] = result["forced_connections"]
+        elif op == "resolve_force_connection":
+            result = editor.resolve_force_connection(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+                int(payload.get("ending1_idx")),
+                int(payload.get("ending2_idx")),
+            )
+            if not result["success"]:
+                return jsonify({"ok": False, "error": result.get("error", "Failed to resolve force connection")}), 400
+            extra["forced_connections"] = result["forced_connections"]
         else:
             return jsonify({"ok": False, "error": f"unknown op: {op}"}), 400
     except (KeyError, ValueError, TypeError) as e:
