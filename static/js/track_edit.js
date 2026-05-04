@@ -499,9 +499,17 @@
         drawScenery();
         drawRoom();
 
+        // Count usage of each piece type
+        const pieceCounts = {};
         for (const p of pieces) {
+            pieceCounts[p.type] = (pieceCounts[p.type] || 0) + 1;
+        }
+
+        for (const p of pieces) {
+            ctx.globalAlpha = p.alpha !== undefined ? p.alpha : 1.0;
             fillPolygon(p.path, '#616161');
             drawTiesAndRails(p.centerlines || [], p.color);
+            ctx.globalAlpha = 1.0; // Reset alpha after drawing
         }
 
         // Connection indicators at joined endings.

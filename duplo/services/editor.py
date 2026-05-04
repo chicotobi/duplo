@@ -583,12 +583,12 @@ class LayoutEditor:
         seen = {pt: 0 for pt in PIECE_TYPES}
         for p, path, cls in zip(self.pieces, pathes, cls_per_piece):
             seen[p["type"]] += 1
-            if seen[p["type"]] > user_lib[p["type"]]:
-                color = "red"
-            elif is_closed and all_within_lib:
+            over_limit = seen[p["type"]] > user_lib[p["type"]]
+            if is_closed:
                 color = "green"
             else:
                 color = "black"
+            alpha = 0.5 if over_limit else 1.0
             eds_world = all_eds[p["id"]]
             endings_view = []
             for eidx, pair in enumerate(eds_world):
@@ -605,6 +605,7 @@ class LayoutEditor:
                 "centerlines": cls,
                 "endings": endings_view,
                 "color": color,
+                "alpha": alpha,
             })
 
         connections_view = [
