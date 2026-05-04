@@ -783,7 +783,7 @@
             const pid = hit.piece.id;
             const desiredEnding = hit.endingIdx;
 
-            if (ev.shiftKey || (multiselectMode && isCoarse && !isDoubleTap)) {
+            if (ev.shiftKey || (multiselectMode && isCoarse)) {
                 if (multiSel.has(pid)) {
                     multiSel.delete(pid);
                     if (selection && selection.piece_id === pid) {
@@ -801,9 +801,6 @@
                     selection = { piece_id: pid, ending_idx: desiredEnding };
                     action('select', { piece_id: pid, ending_idx: desiredEnding });
                 }
-                rec.deferCollapse = false;
-            } else if (multiselectMode && isCoarse && isDoubleTap) {
-                // Double-tap in multiselect mode: don't run selection logic, already handled above
                 rec.deferCollapse = false;
             } else if (multiSel.size > 1 && multiSel.has(pid)) {
                 selection = { piece_id: pid, ending_idx: desiredEnding };
@@ -953,27 +950,26 @@
 
         // Double-tap detection for multiselect mode on mobile
         let isDoubleTap = false;
-        if (isCoarse && rec.hit && !rec.dragPiece && !rec.panActive) {
+        // Only detect double-taps when NOT already in multiselect mode
+        if (isCoarse && rec.hit && !rec.dragPiece && !rec.panActive && !multiselectMode) {
             const now = Date.now();
             const pieceId = rec.hit.piece.id;
             if (lastTapRec && lastTapRec.pieceId === pieceId && (now - lastTapRec.timestamp) < DOUBLE_TAP_WINDOW_MS) {
                 isDoubleTap = true;
-                // Toggle multiselect mode
-                multiselectMode = !multiselectMode;
-                if (multiselectMode) {
-                    // Entering multiselect mode: add this piece
-                    multiSel.add(pieceId);
-                    selection = { piece_id: pieceId, ending_idx: rec.hit.endingIdx };
-                } else {
-                    // Exiting multiselect mode: keep current selection as-is
-                }
+                // Enter multiselect mode
+                multiselectMode = true;
+                multiSel.add(pieceId);
+                selection = { piece_id: pieceId, ending_idx: rec.hit.endingIdx };
                 draw();
                 lastTapRec = null;  // Consume the double-tap
             } else {
                 lastTapRec = { pieceId, timestamp: now };
             }
         } else {
-            lastTapRec = null;  // Reset if not a valid tap
+            // Clear lastTapRec if already in multiselect mode or other conditions
+            if (multiselectMode) {
+                lastTapRec = null;
+            }
         }
 
         if (rec.dragPiece && multiDragOrigPoses) {
@@ -1031,7 +1027,10 @@
         const dist = Math.hypot(rec.curX - rec.startX, rec.curY - rec.startY);
         if (rec.panActive) {
             if (dist > SLOP_PX) saveView();
-            else if (!rec.shiftKey && !multiselectMode) {
+            else if (!rec.shiftKey) {
+                if (multiselectMode) {
+                    multiselectMode = false;
+                }
                 if (selection || multiSel.size > 0) {
                     selection = null;
                     multiSel.clear();
