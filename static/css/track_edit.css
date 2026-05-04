@@ -66,15 +66,34 @@ body { overflow: hidden; }
     text-decoration: underline;
 }
 
-.status-badge {
+
+/* Track status icon/text in title pill */
+
+.track-status {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.5em;
+    font-weight: 600;
+    font-size: 1em;
+}
+.track-title {
+    font-weight: 600;
+    font-size: 1.05em;
+    padding: 0 2px;
+}
+.status-pill.status-title {
+    background: #ef9a9a;
+    color: #b71c1c;
+}
+.status-pill.status-title.closed {
+    background: #a5d6a7;
+    color: #1b5e20;
+}
+.status-pill.status-title.open {
     background: #ef9a9a;
     color: #b71c1c;
 }
 
-.status-badge.closed {
-    background: #a5d6a7;
-    color: #1b5e20;
-}
 
 .icon-btn {
     background: rgba(255, 255, 255, 0.92);

@@ -569,10 +569,25 @@
             const b = el.querySelector('.badge'); if (b) b.textContent = `${c}/${lib}`;
             el.classList.toggle('over', c > lib);
         });
-        const badge = document.getElementById('closedBadge');
-        if (badge) {
-            badge.classList.toggle('closed', isClosed);
-            badge.innerHTML = isClosed ? '\u2714 Closed loop' : '\u26A0 Open ends';
+        // Update track status icon/text in title pill
+        const status = document.getElementById('trackStatus');
+        if (status) {
+            status.classList.toggle('closed', isClosed);
+            status.classList.toggle('open', !isClosed);
+            status.innerHTML = isClosed
+                ? '\u2714'
+                : '\u26A0';
+        }
+        // Update track title color and background
+        const titleText = document.getElementById('titleText');
+        if (titleText) {
+            titleText.classList.toggle('closed', isClosed);
+            titleText.classList.toggle('open', !isClosed);
+        }
+        const titlePill = document.getElementById('titlePill');
+        if (titlePill) {
+            titlePill.classList.toggle('closed', isClosed);
+            titlePill.classList.toggle('open', !isClosed);
         }
         const hasSel = !!selection || multiSel.size > 0;
         // Rotate only for single selection; delete works for any selection.
