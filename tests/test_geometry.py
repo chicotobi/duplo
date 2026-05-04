@@ -7,6 +7,7 @@ import pytest
 from duplo.services.geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
+    can_force_connect,
     centerlines,
     ending_count,
     endings,
@@ -95,3 +96,48 @@ def test_snap_pose_picks_closest_target():
     res = snap_pose("straight", 0, (51.0, 41.0, 0), targets, tolerance=SNAP_TOLERANCE)
     assert res is not None
     assert res["target"]["piece_id"] == 2
+
+
+def test_can_force_connect_close_and_aligned():
+    """Test that endings close together and well-aligned can be force-connected."""
+    # Create two endings pointing towards each other (face-to-face)
+    # ending1: points up (0, 1) from y=0 to y=1 at x=0
+    # ending2: points down (0, -1) from y=1 to y=0 at x=5 (parallel but opposite)
+    ending1 = [[0.0, 0.0], [0.0, 1.0]]
+    ending2 = [[5.0, 1.0], [5.0, 0.0]]  # reversed order makes it point down
+    
+    result = can_force_connect(ending1, ending2)
+    assert result["can_force"] is True
+    assert result["distance"] is not None
+    assert result["angle_deg"] is not None
+
+
+def test_can_force_connect_too_far():
+    """Test that endings too far apart cannot be force-connected."""
+    ending1 = [[0.0, 0.0], [0.0, 1.0]]
+    ending2 = [[100.0, 0.0], [100.0, 1.0]]  # very far away
+    
+    result = can_force_connect(ending1, ending2)
+    assert result["can_force"] is False
+    assert "Distance" in result["reason"]
+
+
+def test_can_force_connect_poor_angle():
+    """Test that endings with poor angle alignment cannot be force-connected."""
+    ending1 = [[0.0, 0.0], [0.0, 1.0]]  # vertical
+    ending2 = [[5.0, 0.0], [6.0, 0.0]]  # horizontal (90° difference)
+    
+    result = can_force_connect(ending1, ending2)
+    assert result["can_force"] is False
+    assert "Angle" in result["reason"]
+
+
+def test_can_force_connect_degenerate_ending():
+    """Test that degenerate endings (zero length) are rejected."""
+    ending1 = [[0.0, 0.0], [0.0, 1.0]]
+    ending2 = [[5.0, 0.0], [5.0, 0.0]]  # zero-length line
+    
+    result = can_force_connect(ending1, ending2)
+    assert result["can_force"] is False
+    assert "Degenerate" in result["reason"]
+

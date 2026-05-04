@@ -16,6 +16,7 @@ from ..repositories.editor_states import (
     editor_state_read,
     editor_state_upsert,
 )
+from ..repositories.tracks import tracks_read_forced_connections
 from .editor import LayoutEditor
 
 
@@ -40,19 +41,23 @@ def load(user_id, track_id):
         if row is None:
             return LayoutEditor.load_from_db(track_id)
         sel = json.loads(row["selection_json"]) if row["selection_json"] else None
+        forced_connections = tracks_read_forced_connections(track_id)
         return LayoutEditor.from_session(
             track_id,
             json.loads(row["pieces_json"]),
             sel,
             next_provisional_id=-1,
+            forced_connections=forced_connections,
         )
     if session.get("editor_track_id") != track_id:
         return LayoutEditor.load_from_db(track_id)
+    forced_connections = tracks_read_forced_connections(track_id)
     return LayoutEditor.from_session(
         track_id,
         session.get("pieces", []),
         session.get("selection"),
         next_provisional_id=session.get("next_provisional_id", -1),
+        forced_connections=forced_connections,
     )
 
 

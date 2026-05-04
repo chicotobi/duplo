@@ -201,6 +201,32 @@ def track_edit_action():
                           None if ending_idx is None else int(ending_idx))
         elif op == "clear_selection":
             editor.clear_selection()
+        elif op == "check_force_connection":
+            result = editor.check_force_connection(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+            )
+            extra["force_connection_candidate"] = result
+        elif op == "force_connect":
+            result = editor.force_connect(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+                int(payload.get("ending1_idx")),
+                int(payload.get("ending2_idx")),
+            )
+            if not result["success"]:
+                return _json_error(result.get("error", "Failed to force connect"))
+            extra["forced_connections"] = result["forced_connections"]
+        elif op == "resolve_force_connection":
+            result = editor.resolve_force_connection(
+                int(payload.get("piece1_id")),
+                int(payload.get("piece2_id")),
+                int(payload.get("ending1_idx")),
+                int(payload.get("ending2_idx")),
+            )
+            if not result["success"]:
+                return _json_error(result.get("error", "Failed to resolve force connection"))
+            extra["forced_connections"] = result["forced_connections"]
         elif op == "save":
             editor.save()
             editor_storage.clear(user_id, track_id)

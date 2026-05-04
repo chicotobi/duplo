@@ -13,6 +13,7 @@
     let view = window.EDITOR_DATA || {};
     let pieces = view.pieces || [];
     let connections = view.connections || [];
+    let forcedConnections = view.forced_connections || [];
     let selection = view.selection || null;
     let multiSel = new Set();  // piece IDs in the group selection
     let isClosed = !!view.is_closed;
@@ -229,31 +230,89 @@
     let trainPath = null, trainS = 0, lastFrameT = performance.now();
     function buildTrainPath() {
         if (!isClosed) { trainPath = null; return; }
+        
+        // Build segments with piece IDs and reverse info
         const segs = [];
-        for (const p of pieces) for (const cl of p.centerlines || []) if (cl.length >= 2) segs.push(cl.map(q => ({ x: q.x, y: q.y })));
-        if (!segs.length) { trainPath = null; return; }
-        const used = new Array(segs.length).fill(false);
-        const chain = segs[0].slice(); used[0] = true;
-        const FIT = 6;
-        while (true) {
-            const tail = chain[chain.length-1];
-            let bI = -1, bRev = false, bD = Infinity;
-            for (let i = 0; i < segs.length; i++) { if (used[i]) continue;
-                const s = segs[i];
-                const d1 = Math.hypot(s[0].x-tail.x, s[0].y-tail.y);
-                const d2 = Math.hypot(s[s.length-1].x-tail.x, s[s.length-1].y-tail.y);
-                if (d1 < bD) { bD = d1; bI = i; bRev = false; }
-                if (d2 < bD) { bD = d2; bI = i; bRev = true; }
+        for (const p of pieces) {
+            for (const cl of p.centerlines || []) {
+                if (cl.length >= 2) {
+                    segs.push({
+                        points: cl.map(q => ({ x: q.x, y: q.y })),
+                        pieceId: p.id
+                    });
+                }
             }
-            if (bI < 0 || bD > FIT) break;
-            const next = bRev ? segs[bI].slice().reverse() : segs[bI];
-            for (let j = 1; j < next.length; j++) chain.push(next[j]);
-            used[bI] = true;
         }
+        if (!segs.length) { trainPath = null; return; }
+        
+        // Build connectivity map: piece_id -> Set of connected piece_ids
+        const connectedTo = {};
+        for (const p of pieces) connectedTo[p.id] = new Set();
+        
+        // Add normal connections
+        for (const [a, b] of connections) {
+            connectedTo[a.piece_id].add(b.piece_id);
+            connectedTo[b.piece_id].add(a.piece_id);
+        }
+        
+        // Add forced connections
+        for (const [a, b] of forcedConnections) {
+            connectedTo[a.piece_id].add(b.piece_id);
+            connectedTo[b.piece_id].add(a.piece_id);
+        }
+        
+        // Chain segments: start with first, greedily add closest or connected segments
+        const used = new Array(segs.length).fill(false);
+        const chain = segs[0].points.slice();
+        used[0] = true;
+        let currentPieceId = segs[0].pieceId;
+        const FIT = 6;
+        
+        while (true) {
+            const tail = chain[chain.length - 1];
+            let bestI = -1, bestRev = false, bestD = Infinity;
+            
+            // Find closest unused segment (either by proximity or connection)
+            for (let i = 0; i < segs.length; i++) {
+                if (used[i]) continue;
+                const s = segs[i].points;
+                const d1 = Math.hypot(s[0].x - tail.x, s[0].y - tail.y);
+                const d2 = Math.hypot(s[s.length-1].x - tail.x, s[s.length-1].y - tail.y);
+                
+                // Prefer connected pieces (distance 0), then close ones, then far ones via connection
+                let dist = Math.min(d1, d2);
+                const isConnected = connectedTo[currentPieceId].has(segs[i].pieceId);
+                if (isConnected) dist -= 1000; // Boost connected pieces
+                
+                if (dist < bestD) {
+                    bestD = dist;
+                    bestI = i;
+                    bestRev = d2 < d1;
+                }
+            }
+            
+            if (bestI < 0) break;
+            if (bestD > FIT && bestD < -900) { // Forced connection exists but segment is close, use it
+                // Use the connection
+            } else if (bestD > FIT) {
+                break; // Can't reach next segment
+            }
+            
+            const next = bestRev ? segs[bestI].points.slice().reverse() : segs[bestI].points.slice();
+            for (let j = 1; j < next.length; j++) chain.push(next[j]);
+            used[bestI] = true;
+            currentPieceId = segs[bestI].pieceId;
+        }
+        
         const head = chain[0], tail = chain[chain.length-1];
-        if (Math.hypot(head.x-tail.x, head.y-tail.y) > 0.1) chain.push({x:head.x,y:head.y});
+        if (Math.hypot(head.x - tail.x, head.y - tail.y) > 0.1) {
+            chain.push({x: head.x, y: head.y});
+        }
+        
         const cum = [0];
-        for (let i = 1; i < chain.length; i++) cum.push(cum[i-1] + Math.hypot(chain[i].x-chain[i-1].x, chain[i].y-chain[i-1].y));
+        for (let i = 1; i < chain.length; i++) {
+            cum.push(cum[i-1] + Math.hypot(chain[i].x - chain[i-1].x, chain[i].y - chain[i-1].y));
+        }
         trainPath = { pts: chain, cum, total: cum[cum.length-1] };
     }
     function trainPosAt(s) {
@@ -338,6 +397,8 @@
         const byId = {};
         for (const p of pieces) byId[p.id] = p;
         ctx.save();
+        
+        // Draw normal connections (green)
         for (const [a, b] of connections) {
             const pa = byId[a.piece_id], pb = byId[b.piece_id];
             if (!pa || !pb) continue;
@@ -360,7 +421,7 @@
             ctx.moveTo(wx(cx - nx * hw), wy(cy - ny * hw));
             ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
             ctx.stroke();
-            // Inner colored line.
+            // Inner colored line (green for normal).
             ctx.strokeStyle = 'rgba(76,175,80,0.85)';
             ctx.lineWidth = Math.max(1.5 / scale, 0.7);
             ctx.beginPath();
@@ -368,6 +429,40 @@
             ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
             ctx.stroke();
         }
+        
+        // Draw forced connections (orange)
+        // forcedConnections is array of [a, b] pairs like normal connections
+        for (const [a, b] of forcedConnections) {
+            const pa = byId[a.piece_id], pb = byId[b.piece_id];
+            if (!pa || !pb) continue;
+            const ea = pa.endings[a.ending_idx], eb = pb.endings[b.ending_idx];
+            if (!ea || !eb) continue;
+            // Midpoint of the connection (average of both ending midpoints).
+            const ma = midpoint([[ea.a.x, ea.a.y], [ea.b.x, ea.b.y]]);
+            const mb = midpoint([[eb.a.x, eb.a.y], [eb.b.x, eb.b.y]]);
+            const cx = (ma[0] + mb[0]) * 0.5, cy = (ma[1] + mb[1]) * 0.5;
+            // Direction perpendicular to the ending edge.
+            const dx = ea.b.x - ea.a.x, dy = ea.b.y - ea.a.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const nx = -dy / len, ny = dx / len;
+            // Draw a short bridge bar across the joint.
+            const hw = W0 * 0.55;  // half-width of the bar
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(2.5 / scale, 1);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(wx(cx - nx * hw), wy(cy - ny * hw));
+            ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
+            ctx.stroke();
+            // Inner colored line (orange for forced).
+            ctx.strokeStyle = 'rgba(255,152,0,0.85)';
+            ctx.lineWidth = Math.max(1.5 / scale, 0.7);
+            ctx.beginPath();
+            ctx.moveTo(wx(cx - nx * hw), wy(cy - ny * hw));
+            ctx.lineTo(wx(cx + nx * hw), wy(cy + ny * hw));
+            ctx.stroke();
+        }
+        
         ctx.restore();
     }
 
@@ -458,6 +553,7 @@
         view = v;
         pieces = v.pieces || [];
         connections = v.connections || [];
+        forcedConnections = v.forced_connections || [];
         selection = v.selection || null;
         isClosed = !!v.is_closed;
         snapTol = v.snap_tolerance || snapTol;
@@ -485,6 +581,7 @@
             multiSel.add(selection.piece_id);
         }
         buildTrainPath();
+        updateForceConnectionUI();
         draw();
     }
 
@@ -531,6 +628,110 @@
             }
         }
         return out;
+    }
+
+    // ====================================================== force connection UI management
+    async function updateForceConnectionUI() {
+        const btn = document.getElementById('forceConnectBtn');
+        // Button only shows when exactly 2 pieces are explicitly selected
+        if (multiSel.size !== 2) {
+            btn.style.display = 'none';
+            forceConnectionState = null;
+            return;
+        }
+        
+        const pieceIds = Array.from(multiSel);
+        const piece1 = pieces.find(p => p.id === pieceIds[0]);
+        const piece2 = pieces.find(p => p.id === pieceIds[1]);
+        
+        if (!piece1 || !piece2) {
+            btn.style.display = 'none';
+            forceConnectionState = null;
+            return;
+        }
+        
+        // Count free endings for each piece (not in normal connections, not in forced connections)
+        const p1Free = [];
+        const p2Free = [];
+        
+        for (let e = 0; e < piece1.endings.length; e++) {
+            const isConnected = connections.some(c => 
+                (c[0].piece_id === piece1.id && c[0].ending_idx === e) ||
+                (c[1].piece_id === piece1.id && c[1].ending_idx === e)
+            );
+            const isForced = forcedConnections.some(c =>
+                (c[0].piece_id === piece1.id && c[0].ending_idx === e) ||
+                (c[1].piece_id === piece1.id && c[1].ending_idx === e)
+            );
+            if (!isConnected && !isForced) p1Free.push(e);
+        }
+        
+        for (let e = 0; e < piece2.endings.length; e++) {
+            const isConnected = connections.some(c => 
+                (c[0].piece_id === piece2.id && c[0].ending_idx === e) ||
+                (c[1].piece_id === piece2.id && c[1].ending_idx === e)
+            );
+            const isForced = forcedConnections.some(c =>
+                (c[0].piece_id === piece2.id && c[0].ending_idx === e) ||
+                (c[1].piece_id === piece2.id && c[1].ending_idx === e)
+            );
+            if (!isConnected && !isForced) p2Free.push(e);
+        }
+        
+        // If both have exactly one free ending, check geometry with backend
+        if (p1Free.length === 1 && p2Free.length === 1) {
+            const e1 = p1Free[0];
+            const e2 = p2Free[0];
+            
+            // Call backend to check if geometry allows force connection
+            try {
+                const response = await fetch(ACTION_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                    body: JSON.stringify({
+                        op: 'check_force_connection',
+                        piece1_id: piece1.id,
+                        piece2_id: piece2.id
+                    })
+                });
+                const data = await response.json();
+                
+                // Response structure: {ok: true, view: {...}, extra: {force_connection_candidate: {can_force, distance, angle_deg, reason}}}
+                const checkResult = data.extra && data.extra.force_connection_candidate;
+                
+                if (!checkResult || !checkResult.can_force) {
+                    btn.style.display = 'none';
+                    forceConnectionState = null;
+                    return;
+                }
+                
+                // Check if they are already force-connected
+                const isForced = forcedConnections.some(c =>
+                    (c[0].piece_id === piece1.id && c[0].ending_idx === e1 &&
+                     c[1].piece_id === piece2.id && c[1].ending_idx === e2) ||
+                    (c[1].piece_id === piece1.id && c[1].ending_idx === e1 &&
+                     c[0].piece_id === piece2.id && c[0].ending_idx === e2)
+                );
+                
+                forceConnectionState = {
+                    piece1_id: piece1.id,
+                    ending1_idx: e1,
+                    piece2_id: piece2.id,
+                    ending2_idx: e2,
+                    is_forced: isForced
+                };
+                btn.style.display = 'block';
+                btn.title = isForced ? 'Resolve force connection (Shift+C)' : 'Force connection (Shift+C)';
+                btn.textContent = isForced ? '⛓✓' : '⛓';
+            } catch (err) {
+                console.error('Error checking force connection:', err);
+                btn.style.display = 'none';
+                forceConnectionState = null;
+            }
+        } else {
+            btn.style.display = 'none';
+            forceConnectionState = null;
+        }
     }
 
     // ====================================================== gestures
@@ -997,6 +1198,19 @@
         multiSel.clear();
         selection = null;
     });
+    
+    // Force connection button
+    let forceConnectionState = null;  // {piece1_id, ending1_idx, piece2_id, ending2_idx, is_forced} or null
+    document.getElementById('forceConnectBtn').addEventListener('click', () => {
+        if (!forceConnectionState) return;
+        const { piece1_id, ending1_idx, piece2_id, ending2_idx, is_forced } = forceConnectionState;
+        if (is_forced) {
+            action('resolve_force_connection', { piece1_id, ending1_idx, piece2_id, ending2_idx });
+        } else {
+            action('force_connect', { piece1_id, ending1_idx, piece2_id, ending2_idx });
+        }
+    });
+    
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) saveBtn.addEventListener('click', () => action('save'));
     const closeBtn = document.getElementById('closeBtn');
@@ -1033,6 +1247,18 @@
     document.addEventListener('keydown', (ev) => {
         if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;
         if (ev.ctrlKey && ev.key.toLowerCase() === 's') { ev.preventDefault(); action('save'); return; }
+        if (ev.shiftKey && (ev.key.toLowerCase() === 'c')) {
+            ev.preventDefault();
+            if (forceConnectionState) {
+                const { piece1_id, ending1_idx, piece2_id, ending2_idx, is_forced } = forceConnectionState;
+                if (is_forced) {
+                    action('resolve_force_connection', { piece1_id, ending1_idx, piece2_id, ending2_idx });
+                } else {
+                    action('force_connect', { piece1_id, ending1_idx, piece2_id, ending2_idx });
+                }
+            }
+            return;
+        }
         if (ev.ctrlKey && ev.key.toLowerCase() === 'a') {
             ev.preventDefault();
             multiSel.clear();

@@ -1,5 +1,6 @@
 """Repository functions for the ``tracks`` table."""
 
+import json
 from ..extensions import sql
 
 
@@ -45,3 +46,23 @@ def tracks_read_id(id):
 
 def tracks_read_all():
     return sql("select * from tracks")
+
+
+def tracks_update_forced_connections(track_id, forced_connections):
+    """Save forced_connections as JSON to the track."""
+    return sql(
+        "update tracks set forced_connections = :fc where id = :id",
+        fc=json.dumps(forced_connections), id=track_id,
+    )
+
+
+def tracks_read_forced_connections(track_id):
+    """Read forced_connections from a track."""
+    rows = sql(
+        "select forced_connections from tracks where id = :id",
+        id=track_id,
+    )
+    if not rows:
+        return []
+    fc_json = rows[0].get("forced_connections") or "[]"
+    return json.loads(fc_json)

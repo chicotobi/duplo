@@ -157,3 +157,80 @@ def test_view_model_marks_connected_endings(app, track_id):
             free = sum(1 for e in p["endings"] if e["free"])
             assert free == 1
         assert vm["is_closed"] is False
+
+
+def test_force_connect_basic(app, track_id):
+    """Test that force_connect adds a forced connection."""
+    with app.app_context():
+        editor = LayoutEditor.load_from_db(track_id)
+        # Add two straight pieces positioned close together and face-to-face
+        p1 = editor.add_piece("straight", 0.0, 0.0, 0)
+        p2 = editor.add_piece("straight", 5.0, 0.0, 0)  # close enough for force connection
+        
+        result = editor.force_connect(p1, p2, 1, 0)
+        assert result["success"] is True
+        assert len(editor.forced_connections) == 1
+        assert editor.forced_connections[0]["piece1_id"] == p1
+        assert editor.forced_connections[0]["ending1_idx"] == 1
+
+
+def test_force_connect_validation(app, track_id):
+    """Test that force_connect validates geometry."""
+    with app.app_context():
+        editor = LayoutEditor.load_from_db(track_id)
+        p1 = editor.add_piece("straight", 0.0, 0.0, 0)
+        p2 = editor.add_piece("straight", 1000.0, 1000.0, 0)  # very far
+        
+        result = editor.force_connect(p1, p2, 1, 0)
+        # This should fail because pieces are too far apart
+        assert result["success"] is False
+        assert "error" in result
+
+
+def test_resolve_force_connection(app, track_id):
+    """Test that resolve_force_connection removes a forced connection."""
+    with app.app_context():
+        editor = LayoutEditor.load_from_db(track_id)
+        p1 = editor.add_piece("straight", 0.0, 0.0, 0)
+        p2 = editor.add_piece("straight", 5.0, 0.0, 0)  # close enough
+        
+        editor.force_connect(p1, p2, 1, 0)
+        assert len(editor.forced_connections) == 1
+        
+        result = editor.resolve_force_connection(p1, p2, 1, 0)
+        assert result["success"] is True
+        assert len(editor.forced_connections) == 0
+
+
+def test_view_model_includes_forced_connections(app, track_id):
+    """Test that view_model includes forced_connections."""
+    with app.app_context():
+        editor = LayoutEditor.load_from_db(track_id)
+        p1 = editor.add_piece("straight", 0.0, 0.0, 0)
+        p2 = editor.add_piece("straight", 5.0, 0.0, 0)  # close enough
+        
+        editor.force_connect(p1, p2, 1, 0)
+        vm = editor.view_model(USER_LIB)
+        assert "forced_connections" in vm
+        assert len(vm["forced_connections"]) == 1
+
+
+def test_forced_connections_persist_to_session(app, track_id):
+    """Test that forced_connections are included in session state."""
+    with app.app_context():
+        editor = LayoutEditor.load_from_db(track_id)
+        p1 = editor.add_piece("straight", 0.0, 0.0, 0)
+        p2 = editor.add_piece("straight", 5.0, 0.0, 0)  # close enough
+        
+        editor.force_connect(p1, p2, 1, 0)
+        snap = editor.to_session()
+        
+        assert "forced_connections" in snap
+        assert len(snap["forced_connections"]) == 1
+        
+        restored = LayoutEditor.from_session(
+            track_id, snap["pieces"], snap["selection"],
+            snap["next_provisional_id"], snap["forced_connections"]
+        )
+        assert len(restored.forced_connections) == 1
+

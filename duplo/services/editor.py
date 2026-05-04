@@ -25,6 +25,10 @@ from ..repositories.layouts import (
     layouts_parse,
     pieces_update,
 )
+from ..repositories.tracks import (
+    tracks_read_forced_connections,
+    tracks_update_forced_connections,
+)
 
 from .geometry import (
     PIECE_TYPES,
@@ -42,7 +46,7 @@ from .thumbnails import generate_thumbnail
 class LayoutEditor:
     """In-memory state machine for the pose-based track editor."""
 
-    def __init__(self, track_id, pieces, selection=None, next_provisional_id=-1):
+    def __init__(self, track_id, pieces, selection=None, next_provisional_id=-1, forced_connections=None):
         self.track_id = track_id
         self.pieces = [
             {"id": int(p["id"]), "type": p["type"],
@@ -52,22 +56,28 @@ class LayoutEditor:
         self.selection = self._normalise_selection(selection)
         # Counter used to mint ids for unsaved pieces (negative, decreasing).
         self._next_provisional = int(next_provisional_id)
+        # List of forced connections: [{"piece1_id": int, "ending1_idx": int,
+        #                               "piece2_id": int, "ending2_idx": int}, ...]
+        self.forced_connections = forced_connections if forced_connections is not None else []
 
     # ------------------------------------------------------------------ load
 
     @classmethod
     def load_from_db(cls, track_id):
-        return cls(track_id, layouts_parse(track_id))
+        pieces = layouts_parse(track_id)
+        forced_connections = tracks_read_forced_connections(track_id)
+        return cls(track_id, pieces, forced_connections=forced_connections)
 
     @classmethod
-    def from_session(cls, track_id, pieces, selection, next_provisional_id=-1):
-        return cls(track_id, pieces, selection, next_provisional_id)
+    def from_session(cls, track_id, pieces, selection, next_provisional_id=-1, forced_connections=None):
+        return cls(track_id, pieces, selection, next_provisional_id, forced_connections)
 
     def to_session(self):
         return {
             "pieces": [dict(p) for p in self.pieces],
             "selection": dict(self.selection) if self.selection else None,
             "next_provisional_id": self._next_provisional,
+            "forced_connections": [dict(fc) for fc in self.forced_connections],
         }
 
     # ----------------------------------------------------------- helpers
@@ -332,6 +342,172 @@ class LayoutEditor:
         p["x"], p["y"] = nx, ny
         return {"piece": dict(p), "snapped": False, "target": None}
 
+    def get_force_connection_candidates(self):
+        """Check if exactly 2 pieces are selected with 1 free ending each.
+
+        Returns dict with qualification info, or None if selection doesn't match.
+
+        Returns
+        -------
+        dict or None
+            If matched: ``{"can_force": bool, "piece1_id": int, "ending1_idx": int,
+                          "piece2_id": int, "ending2_idx": int, "distance": float,
+                          "angle_deg": float, "reason": str (if not can_force)}``
+            If no match: ``None``
+        """
+        from .geometry import can_force_connect
+
+        if self.selection is None:
+            return None
+
+        piece1_id = self.selection.get("piece_id")
+        if piece1_id is None:
+            return None
+
+        # Find two selected pieces
+        pieces_sel = [p["id"] for p in self.pieces
+                      if p["id"] == piece1_id or
+                         (self.selection and p["id"] in getattr(self, '_multi_selection', {}))]
+
+        # For now, we only support checking when selection is single-piece context
+        # Check if there are hints about a second piece in the payload (passed from client)
+        # For this, we'll return None if selection is unclear
+        return None
+
+    def check_force_connection(self, piece1_id, piece2_id):
+        """Check if two specific pieces can be force-connected.
+
+        Each piece must have exactly one free ending, and those endings must
+        be geometrically close and nearly aligned.
+
+        Returns
+        -------
+        dict
+            ``{"can_force": bool, "distance": float, "angle_deg": float or None,
+              "reason": str or None}``
+        """
+        from .geometry import can_force_connect, ending_count, world_endings_for_pose
+
+        try:
+            p1 = self._piece(piece1_id)
+            p2 = self._piece(piece2_id)
+        except KeyError:
+            return {"can_force": False, "distance": None, "angle_deg": None,
+                    "reason": "Piece not found"}
+
+        # Compute free endings for both pieces
+        _, all_endings, _ = self._build()
+        from ..repositories.layouts import layouts_connections
+        conns = layouts_connections(all_endings)
+        forced_pairs = set(
+            ((fc["piece1_id"], fc["ending1_idx"]), (fc["piece2_id"], fc["ending2_idx"]))
+            if fc["piece1_id"] < fc["piece2_id"]
+            else ((fc["piece2_id"], fc["ending2_idx"]), (fc["piece1_id"], fc["ending1_idx"]))
+            for fc in self.forced_connections
+        )
+
+        # Find connected and forced endings for each piece
+        connected = set()
+        for (a, b) in conns:
+            connected.add((a[0], a[1]))
+            connected.add((b[0], b[1]))
+        forced_used = set()
+        for fc_pair in forced_pairs:
+            forced_used.add(fc_pair[0])
+            forced_used.add(fc_pair[1])
+
+        p1_free = []
+        for eidx in range(ending_count[p1["type"]]):
+            if (p1["id"], eidx) not in connected and (p1["id"], eidx) not in forced_used:
+                p1_free.append(eidx)
+
+        p2_free = []
+        for eidx in range(ending_count[p2["type"]]):
+            if (p2["id"], eidx) not in connected and (p2["id"], eidx) not in forced_used:
+                p2_free.append(eidx)
+
+        if len(p1_free) != 1 or len(p2_free) != 1:
+            msg = f"Need exactly 1 free ending per piece; got {len(p1_free)}, {len(p2_free)}"
+            return {"can_force": False, "distance": None, "angle_deg": None,
+                    "reason": msg}
+
+        e1_idx = p1_free[0]
+        e2_idx = p2_free[0]
+        e1 = all_endings[p1["id"]][e1_idx]
+        e2 = all_endings[p2["id"]][e2_idx]
+
+        result = can_force_connect(e1, e2)
+        return result
+
+    def force_connect(self, piece1_id, piece2_id, ending1_idx, ending2_idx):
+        """Create a forced connection between two pieces.
+
+        Returns ``{"success": bool, "forced_connections": [...], "error": str or None}``
+        """
+        try:
+            self._piece(piece1_id)
+            self._piece(piece2_id)
+        except KeyError:
+            return {"success": False, "forced_connections": self.forced_connections,
+                    "error": "Piece not found"}
+
+        # Check if connection already exists
+        for fc in self.forced_connections:
+            if ((fc["piece1_id"] == piece1_id and fc["ending1_idx"] == ending1_idx and
+                 fc["piece2_id"] == piece2_id and fc["ending2_idx"] == ending2_idx) or
+                (fc["piece1_id"] == piece2_id and fc["ending1_idx"] == ending2_idx and
+                 fc["piece2_id"] == piece1_id and fc["ending2_idx"] == ending1_idx)):
+                return {"success": False, "forced_connections": self.forced_connections,
+                        "error": "Connection already exists"}
+
+        # Verify geometry
+        check_result = self.check_force_connection(piece1_id, piece2_id)
+        if not check_result["can_force"]:
+            return {"success": False, "forced_connections": self.forced_connections,
+                    "error": check_result.get("reason", "Cannot force connection")}
+
+        # Add the connection
+        fc = {
+            "piece1_id": int(piece1_id),
+            "ending1_idx": int(ending1_idx),
+            "piece2_id": int(piece2_id),
+            "ending2_idx": int(ending2_idx),
+        }
+        self.forced_connections.append(fc)
+        
+        # Persist to database immediately
+        tracks_update_forced_connections(self.track_id, self.forced_connections)
+
+        return {"success": True, "forced_connections": self.forced_connections, "error": None}
+
+    def resolve_force_connection(self, piece1_id, piece2_id, ending1_idx, ending2_idx):
+        """Remove a forced connection between two pieces.
+
+        Returns ``{"success": bool, "forced_connections": [...], "error": str or None}``
+        """
+        initial_len = len(self.forced_connections)
+        self.forced_connections = [
+            fc for fc in self.forced_connections
+            if not (
+                (fc["piece1_id"] == piece1_id and fc["ending1_idx"] == ending1_idx and
+                 fc["piece2_id"] == piece2_id and fc["ending2_idx"] == ending2_idx) or
+                (fc["piece1_id"] == piece2_id and fc["ending1_idx"] == ending2_idx and
+                 fc["piece2_id"] == piece1_id and fc["ending2_idx"] == ending1_idx)
+            )
+        ]
+
+        removed = initial_len > len(self.forced_connections)
+        
+        # Persist to database immediately
+        if removed:
+            tracks_update_forced_connections(self.track_id, self.forced_connections)
+        
+        return {
+            "success": removed,
+            "forced_connections": self.forced_connections,
+            "error": None if removed else "Connection not found",
+        }
+
     # --------------------------------------------------------------- persist
 
     def save(self):
@@ -350,6 +526,14 @@ class LayoutEditor:
                 self.selection = None
             else:
                 self.selection["piece_id"] = mapped
+        # Remap forced_connections piece ids
+        for fc in self.forced_connections:
+            if fc["piece1_id"] in id_map:
+                fc["piece1_id"] = id_map[fc["piece1_id"]]
+            if fc["piece2_id"] in id_map:
+                fc["piece2_id"] = id_map[fc["piece2_id"]]
+        # Persist forced_connections to database
+        tracks_update_forced_connections(self.track_id, self.forced_connections)
         generate_thumbnail(self.track_id)
 
     # ----------------------------------------------------------------- view
@@ -374,6 +558,12 @@ class LayoutEditor:
         for (a, b) in connections:
             consumed.add(a)
             consumed.add(b)
+        
+        # Also add forced connections to consumed set
+        for fc in self.forced_connections:
+            consumed.add((fc["piece1_id"], fc["ending1_idx"]))
+            consumed.add((fc["piece2_id"], fc["ending2_idx"]))
+        
         is_closed = bool(self.pieces) and not any(
             (p["id"], eidx) not in consumed
             for p in self.pieces
@@ -426,6 +616,11 @@ class LayoutEditor:
         return {
             "pieces": out_pieces,
             "connections": connections_view,
+            "forced_connections": [
+                [{"piece_id": fc["piece1_id"], "ending_idx": fc["ending1_idx"]},
+                 {"piece_id": fc["piece2_id"], "ending_idx": fc["ending2_idx"]}]
+                for fc in self.forced_connections
+            ],
             "selection": dict(self.selection) if self.selection else None,
             "is_closed": is_closed,
             "counter": counter,

@@ -62,6 +62,11 @@ ending_count = {p: len(endings[p]) for p in PIECE_TYPES}
 # inline tolerance of ~10 used by ``layouts_free_endings.fitting``.
 SNAP_TOLERANCE = 0.6 * w0
 
+# Force connection thresholds (world units and degrees).
+# 12.8 world units ≈ 40mm (4cm) in real scale (MM_PER_UNIT = 3.2mm)
+FORCE_CONNECTION_DISTANCE = 12.8
+FORCE_CONNECTION_ANGLE_DEG = 10
+
 
 def to_path(xy):
     return [{'x': x, 'y': y} for x, y in xy]
@@ -182,6 +187,94 @@ def snap_pose(piece_type,
                     "target": {"piece_id": target["piece_id"],
                                "ending_idx": target["ending_idx"]}}
     return best
+
+
+def can_force_connect(ending1, ending2, distance_threshold=FORCE_CONNECTION_DISTANCE,
+                      angle_threshold_deg=FORCE_CONNECTION_ANGLE_DEG):
+    """Check if two world-space endings can be force-connected.
+
+    Parameters
+    ----------
+    ending1 : [[x1, y1], [x2, y2]]
+        First ending line segment in world coordinates.
+    ending2 : [[x3, y3], [x4, y4]]
+        Second ending line segment in world coordinates.
+    distance_threshold : float
+        Maximum distance (in world units) between ending midpoints.
+    angle_threshold_deg : float
+        Maximum angle difference (in degrees) between ending normals.
+
+    Returns
+    -------
+    dict
+        ``{"can_force": bool, "distance": float, "angle_deg": float, "reason": str}``
+    """
+    # Compute midpoints
+    mid1 = _ending_midpoint(ending1)
+    mid2 = _ending_midpoint(ending2)
+
+    # Distance between midpoints
+    dist = ((mid1[0] - mid2[0]) ** 2 + (mid1[1] - mid2[1]) ** 2) ** 0.5
+
+    if dist > distance_threshold:
+        msg = f"Distance {dist:.2f} exceeds threshold {distance_threshold:.2f}"
+        return {
+            "can_force": False,
+            "distance": dist,
+            "angle_deg": None,
+            "reason": msg,
+        }
+
+    # Compute direction vectors (perpendicular to line segments)
+    # ending = [[x1, y1], [x2, y2]]; direction = (x2 - x1, y2 - y1)
+    dir1 = (ending1[1][0] - ending1[0][0], ending1[1][1] - ending1[0][1])
+    dir2 = (ending2[1][0] - ending2[0][0], ending2[1][1] - ending2[0][1])
+
+    # Normalize directions
+    len1 = (dir1[0] ** 2 + dir1[1] ** 2) ** 0.5
+    len2 = (dir2[0] ** 2 + dir2[1] ** 2) ** 0.5
+
+    if len1 < 1e-9 or len2 < 1e-9:
+        return {
+            "can_force": False,
+            "distance": dist,
+            "angle_deg": None,
+            "reason": "Degenerate ending (zero length)",
+        }
+
+    dir1 = (dir1[0] / len1, dir1[1] / len1)
+    dir2 = (dir2[0] / len2, dir2[1] / len2)
+
+    # Angle between directions (note: for face-to-face connection, directions should be opposite)
+    # We compute the angle and then check if it's close to 180° or 0° (reversed)
+    dot_product = dir1[0] * dir2[0] + dir1[1] * dir2[1]
+    # Clamp to [-1, 1] to handle floating point errors
+    dot_product = max(-1.0, min(1.0, dot_product))
+    angle_rad = atan2(dir1[1], dir1[0]) - atan2(dir2[1], dir2[0])
+    # Normalize to [-pi, pi]
+    while angle_rad > pi:
+        angle_rad -= 2 * pi
+    while angle_rad < -pi:
+        angle_rad += 2 * pi
+    # For face-to-face, we want angle close to pi (180°) or -pi
+    angle_to_opposite = abs(abs(angle_rad) - pi)
+    angle_deg = abs(angle_to_opposite) * 180 / pi
+
+    if angle_deg > angle_threshold_deg:
+        msg = f"Angle {angle_deg:.1f}° exceeds threshold {angle_threshold_deg}°"
+        return {
+            "can_force": False,
+            "distance": dist,
+            "angle_deg": angle_deg,
+            "reason": msg,
+        }
+
+    return {
+        "can_force": True,
+        "distance": dist,
+        "angle_deg": angle_deg,
+        "reason": None,
+    }
 
 
 # ------------------------------------------------------------------ overlap
