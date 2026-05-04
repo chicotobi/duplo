@@ -37,6 +37,7 @@ def _load_sandbox():
             pieces=session["sandbox_pieces"],
             selection=session.get("sandbox_selection"),
             next_provisional_id=session.get("sandbox_next_id", -1),
+            forced_connections=session.get("sandbox_forced_connections"),
         )
     return LayoutEditor(track_id=0, pieces=[])
 
@@ -47,6 +48,7 @@ def _save_sandbox(editor):
     session["sandbox_pieces"] = state["pieces"]
     session["sandbox_selection"] = state["selection"]
     session["sandbox_next_id"] = state["next_provisional_id"]
+    session["sandbox_forced_connections"] = state["forced_connections"]
 
 
 @bp.route("/sandbox/action", methods=["POST"])
