@@ -201,6 +201,18 @@ def track_edit_action():
                           None if ending_idx is None else int(ending_idx))
         elif op == "clear_selection":
             editor.clear_selection()
+        elif op == "design_track":
+            room = users_room_read(user_id)[0]
+            stats = editor.autodesign(
+                user_lib, room["room_w"], room["room_h"],
+                seed=payload.get("seed"),
+            )
+            if stats is None:
+                return _json_error(
+                    "No closed track can be built from your pieces. "
+                    "A loop needs at least 12 curves.",
+                )
+            extra["design"] = stats
         elif op == "check_force_connection":
             result = editor.check_force_connection(
                 int(payload.get("piece1_id")),

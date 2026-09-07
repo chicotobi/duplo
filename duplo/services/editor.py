@@ -30,6 +30,7 @@ from ..repositories.tracks import (
     tracks_update_forced_connections,
 )
 
+from .designer import design_track
 from .geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
@@ -279,6 +280,39 @@ class LayoutEditor:
             p["x"] = float(m["x"])
             p["y"] = float(m["y"])
             p["rot"] = int(m["rot"]) % 12
+
+    def autodesign(self, user_lib, room_w, room_h, seed=None,
+                   time_budget=None):
+        """Replace the layout with a generated closed track.
+
+        Returns the designer's stats dict, or ``None`` if no closed track
+        could be built from ``user_lib`` — in which case the current layout is
+        left untouched.
+        """
+        result = design_track(
+            user_lib, room_w=room_w, room_h=room_h, seed=seed,
+            **({} if time_budget is None else {"time_budget": time_budget}),
+        )
+        if result is None:
+            return None
+
+        self.pieces = [
+            {"id": self._mint_id(), "type": p["type"],
+             "x": float(p["x"]), "y": float(p["y"]), "rot": int(p["rot"]) % 12}
+            for p in result["pieces"]
+        ]
+        self.selection = None
+        # The old forced connections referred to pieces that no longer exist.
+        # The designer may leave a joint or two just short of snapping — real
+        # track flexes — and those come back as forced connections against the
+        # new pieces, so the layout still reads as closed.
+        ids = [p["id"] for p in self.pieces]
+        self.forced_connections = [
+            {"piece1_id": ids[fc["piece1"]], "ending1_idx": fc["ending1_idx"],
+             "piece2_id": ids[fc["piece2"]], "ending2_idx": fc["ending2_idx"]}
+            for fc in result.get("forced", [])
+        ]
+        return result["stats"]
 
     def select(self, piece_id, ending_idx=None):
         # Validate.

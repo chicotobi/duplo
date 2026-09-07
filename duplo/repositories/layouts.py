@@ -6,7 +6,7 @@ coincident world endings on every render via :func:`layouts_connections`.
 """
 
 from ..extensions import sql
-from ..services.geometry import SNAP_TOLERANCE, transform_for_pose
+from ..services.geometry import SNAP_TOLERANCE, endings_fit, transform_for_pose
 
 
 def pieces_update(track_id, pieces):
@@ -110,16 +110,10 @@ def layouts_build(pieces):
 def _pairs_fit(pair_a, pair_b, tolerance):
     """True if two ending pairs coincide face-to-face within ``tolerance``.
 
-    Connection rule: pieces meet face-to-face, so the second ending's points
-    are reversed relative to the first. We use the same Manhattan-style
-    metric as the original ``fitting()`` (sum of |dx| + |dy|), scaled to the
-    tolerance.
+    Thin alias for :func:`~duplo.services.geometry.endings_fit`, which owns
+    the definition.
     """
-    (a1, a2) = pair_a
-    (b1, b2) = pair_b
-    res = (abs(a1[0] - b2[0]) + abs(a1[1] - b2[1])
-           + abs(a2[0] - b1[0]) + abs(a2[1] - b1[1]))
-    return res < tolerance
+    return endings_fit(pair_a, pair_b, tolerance)
 
 
 def layouts_connections(all_endings, tolerance=None):

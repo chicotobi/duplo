@@ -1134,6 +1134,32 @@
     canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); scale = DEFAULT_SCALE; centerView(); saveView(); draw(); });
     document.getElementById('resetView').addEventListener('click', () => { scale = DEFAULT_SCALE; centerView(); saveView(); draw(); });
 
+    // ====================================================== auto design
+    const designBtn = document.getElementById('designBtn');
+    if (designBtn) {
+        designBtn.addEventListener('click', () => {
+            if (pieces.length && !confirm('Replace the current track with a newly designed one?')) return;
+            const label = designBtn.textContent;
+            designBtn.disabled = true;
+            designBtn.textContent = '⏳';
+            action('design_track').then(json => {
+                designBtn.disabled = false;
+                designBtn.textContent = label;
+                if (!json || !json.ok) {
+                    alert((json && json.error) || 'Could not design a track.');
+                    return;
+                }
+                // applyView() has already replaced the pieces; just reset the
+                // view so the whole new track is on screen.
+                multiSel.clear();
+                scale = DEFAULT_SCALE;
+                centerView();
+                saveView();
+                draw();
+            });
+        });
+    }
+
     // ====================================================== palette interactions
     function paletteCenterSpawn(type) {
         if (selection) {

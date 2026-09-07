@@ -118,6 +118,37 @@ def _ending_midpoint(end_pair):
             (end_pair[0][1] + end_pair[1][1]) * 0.5)
 
 
+def endings_fit(pair_a, pair_b, tolerance=SNAP_TOLERANCE):
+    """True if two world-space endings coincide face-to-face within *tolerance*.
+
+    Connection rule: pieces meet face-to-face, so the second ending's points
+    are reversed relative to the first. The metric is Manhattan-style
+    (sum of ``|dx| + |dy|`` over both corner pairs), matching the tolerance
+    scale of :data:`SNAP_TOLERANCE`.
+
+    This is *the* definition of "these two pieces are connected"; both
+    :func:`~duplo.repositories.layouts.layouts_connections` (view time) and
+    the automatic designer go through it, so they cannot drift apart.
+    """
+    (a1, a2) = pair_a
+    (b1, b2) = pair_b
+    res = (abs(a1[0] - b2[0]) + abs(a1[1] - b2[1])
+           + abs(a2[0] - b1[0]) + abs(a2[1] - b1[1]))
+    return res < tolerance
+
+
+def ending_heading(pair):
+    """Outward heading of an ending, in 30-degree steps (0..11).
+
+    ``pair`` is ``[A, B]`` in world coordinates; the outward normal is
+    ``B - A`` rotated 90 degrees counter-clockwise. This is the direction a
+    train travels when it *leaves* the piece through this ending.
+    """
+    dx = pair[1][0] - pair[0][0]
+    dy = pair[1][1] - pair[0][1]
+    return round(atan2(dx, -dy) / (pi / 6)) % 12
+
+
 def _pose_to_align(piece_type, anchor_ending_idx, target_pair):
     """Return ``(x, y, rot_steps)`` such that the dragged piece's anchor
     ending overlays ``target_pair`` reversed.
