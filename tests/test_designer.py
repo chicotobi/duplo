@@ -248,19 +248,10 @@ def test_room_size_is_respected_when_it_is_tight():
 
 
 # ----------------------------------------------------------- editor plumbing
-
-def test_editor_autodesign_replaces_the_layout(app, track_id):
-    from duplo.services.editor import LayoutEditor
-    with app.app_context():
-        editor = LayoutEditor(track_id, [])
-        editor.add_piece("straight", 0, 0, 0)
-        stats = editor.autodesign(DEFAULT_LIB, 6, 4, seed=5, time_budget=6.0)
-        assert stats is not None
-        assert len(editor.pieces) == stats["pieces"]
-        assert editor.is_closed()
-        assert editor.selection is None
-        assert editor.forced_connections == []
-
+#
+# Only the empty-floor path lives here. ``autodesign`` on a floor that already
+# has pieces on it *completes* rather than replaces, and is covered in
+# test_completion.py against the real hand-built layouts.
 
 def test_designed_layout_reports_closed_in_the_view_model(app, track_id):
     from duplo.services.editor import LayoutEditor

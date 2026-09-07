@@ -1138,7 +1138,8 @@
     const designBtn = document.getElementById('designBtn');
     if (designBtn) {
         designBtn.addEventListener('click', () => {
-            if (pieces.length && !confirm('Replace the current track with a newly designed one?')) return;
+            // No confirmation: this only ever adds to the track. Nothing the
+            // user placed is moved or removed, so there is nothing to lose.
             const label = designBtn.textContent;
             designBtn.disabled = true;
             designBtn.textContent = '⏳';
@@ -1146,16 +1147,30 @@
                 designBtn.disabled = false;
                 designBtn.textContent = label;
                 if (!json || !json.ok) {
-                    alert((json && json.error) || 'Could not design a track.');
+                    alert((json && json.error) || 'Could not extend the track.');
                     return;
                 }
-                // applyView() has already replaced the pieces; just reset the
-                // view so the whole new track is on screen.
+                // applyView() has already added the pieces; just reset the
+                // view so the whole track is on screen.
                 multiSel.clear();
                 scale = DEFAULT_SCALE;
                 centerView();
                 saveView();
                 draw();
+
+                const d = json.design;
+                if (d && !d.closed) {
+                    // The search ran out of time. What came back is a
+                    // suggestion to build on, not an answer — say so, because
+                    // the track will still be drawn open and the user needs
+                    // to know those pieces are theirs to keep or delete.
+                    alert(d.added
+                        ? `Could not close the track in time. Added ${d.added} `
+                          + 'pieces as a suggestion — keep what you like and '
+                          + 'delete the rest.'
+                        : 'Could not find a way to close the track with the '
+                          + 'pieces you have left.');
+                }
             });
         });
     }

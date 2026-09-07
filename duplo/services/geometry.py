@@ -337,6 +337,15 @@ def _point_in_polygon(px, py, poly):
     return inside
 
 
+# Cross products below this count as zero. Two track pieces laid end to end
+# have collinear edges, where the true cross product is zero and the computed
+# one is rounding noise around 1e-13 — and a bare sign comparison then reads
+# that noise as a crossing. Genuine crossings between pieces this size produce
+# values many orders of magnitude larger, so the threshold separates them
+# cleanly.
+_CROSS_EPS = 1e-9
+
+
 def _segments_intersect(a1, a2, b1, b2):
     """Return ``True`` if segment *a1→a2* properly crosses *b1→b2*."""
     def _cross(o, a, b):
@@ -345,10 +354,31 @@ def _segments_intersect(a1, a2, b1, b2):
     d2 = _cross(b1, b2, a2)
     d3 = _cross(a1, a2, b1)
     d4 = _cross(a1, a2, b2)
-    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+    return (_straddles(d1, d2) and _straddles(d3, d4))
 
 
-def _shrink_polygon(poly, margin=0.3):
+def _straddles(d1, d2):
+    """Do these two cross products lie on strictly opposite sides of zero?"""
+    if d1 > _CROSS_EPS:
+        return d2 < -_CROSS_EPS
+    if d1 < -_CROSS_EPS:
+        return d2 > _CROSS_EPS
+    return False
+
+
+# Default clearance for the overlap test: enough that pieces merely sharing an
+# edge do not read as overlapping.
+OVERLAP_MARGIN = 0.3
+
+# Clearance to allow between two pieces meeting at a joint. Two endings count
+# as connected while their Manhattan corner sum stays under SNAP_TOLERANCE,
+# which permits a centre offset of up to half that — so a perfectly legal
+# joint can have the two pieces poking into each other by that much. Anything
+# stricter would reject layouts the editor itself is happy with.
+JOINT_OVERLAP_MARGIN = SNAP_TOLERANCE / 2
+
+
+def _shrink_polygon(poly, margin=OVERLAP_MARGIN):
     """Shrink *poly* toward its centroid by *margin* units.
 
     This prevents false-positive overlap for pieces that merely share an
@@ -369,14 +399,16 @@ def _shrink_polygon(poly, margin=0.3):
     return result
 
 
-def polygons_overlap(poly_a, poly_b):
+def polygons_overlap(poly_a, poly_b, margin=OVERLAP_MARGIN):
     """Return ``True`` if two simple polygons share interior area.
 
-    Polygons are shrunk slightly so that pieces sharing an edge (connected
-    pieces) are *not* reported as overlapping.
+    Polygons are shrunk by *margin* so that pieces sharing an edge (connected
+    pieces) are *not* reported as overlapping. Pass
+    :data:`JOINT_OVERLAP_MARGIN` for a pair that meets at a joint, where the
+    connection tolerance lets the two pieces genuinely interpenetrate a little.
     """
-    poly_a = _shrink_polygon(poly_a)
-    poly_b = _shrink_polygon(poly_b)
+    poly_a = _shrink_polygon(poly_a, margin)
+    poly_b = _shrink_polygon(poly_b, margin)
     na, nb = len(poly_a), len(poly_b)
     for i in range(na):
         a1, a2 = poly_a[i], poly_a[(i + 1) % na]

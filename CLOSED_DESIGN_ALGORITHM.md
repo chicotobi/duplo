@@ -1,8 +1,13 @@
 # The Closed Design Algorithm
 
-Notes from working out how to generate a **closed** Duplo track layout from a
-given box of pieces. The conclusion is at the top; the failed approach is
-written up too, because knowing why it fails is most of the value.
+Notes from working out how to get a Duplo track layout **closed** with a given
+box of pieces.
+
+Sections 1–4 are about designing a layout from nothing, which is where this
+started and which is genuinely hard. Section 5 is where it ended up: the
+designer takes the pieces already on the floor as given and only fills in the
+rest. That is both what people actually want and a far easier problem — and it
+is what the app does now. Read section 5 first if you only read one.
 
 ---
 
@@ -160,29 +165,97 @@ halved the nodes needed for a plain loop.
 
 ---
 
-## 5. State of the code
+## 5. Completion: don't design the topology, inherit it
 
-Working and tested:
+Section 4 concluded the search has to be replaced by topology *choice*. The
+better answer turned out to be: **don't choose the topology at all — take the
+user's.**
 
-* `duplo/services/designer.py` — the piece-by-piece searcher. Produces closed,
-  non-overlapping, room-fitting **plain loops** reliably (~14k nodes for a
-  20-piece loop). Does *not* produce switch or crossing layouts.
-* `geometry.endings_fit` / `ending_heading` — the connection predicate lifted
-  out of the repository layer so the designer and the editor cannot disagree
-  about what "connected" means.
-* Near-miss joints: the designer may leave a joint inside the force-connect
-  tolerance and returns it as a forced connection, so the layout still reads as
-  closed. Verified end-to-end.
-* Scoring weights switches (0.34) and crossings (0.30) above coverage (0.16).
-* `design_track` op on both the logged-in and sandbox endpoints, plus a
-  toolbar button.
+The pieces already on the floor are given. They are never moved, rotated or
+removed; the designer only *adds*, out of what is left in the box. This is a
+far smaller problem than designing from nothing, because the endings left open
+already pin down where the answer has to go — and the topology, the thing a
+piece-by-piece search can only stumble onto, has already been decided by hand.
 
-### Next step
+`complete_track` is now the entry point the app uses. `design_track` survives
+for the one case with nothing to inherit: an empty floor.
 
-Replace the topology *search* with topology *choice*, per section 3. Steps 1
-and 2 are enumeration. Step 4 is the existing router, which already closes
-paths reliably — but it needs to aim for a target path length rather than the
-shortest route. Step 3, where to place the specials, is the genuinely open
-question; the hand-built layouts show no obvious rule, so the most promising
-approach is to place the first special at the origin and let each completed
-path determine the next one's pose.
+### The clock is hard
+
+The search runs under a wall-clock limit and honours it whatever the outcome.
+When it expires with nothing closed, the answer is not an error — it is an
+arbitrary non-overlapping continuation of the track, marked `closed: False`,
+for the user to keep or trim. One greedy pass, no backtracking, each step
+taking whichever piece lands nearest another open ending so the continuation
+heads home rather than wandering off.
+
+### What had to change, and what it was worth
+
+Every one of these was found by knocking holes in the seven real layouts and
+watching what failed. All five were doing real damage:
+
+* **Overlap at a joint.** The killer, and the most surprising. In the user's
+  own saved tracks, connected pieces routinely *interpenetrate* by a unit or
+  two: `endings_fit` accepts a Manhattan corner sum under 6.0, which permits
+  ~3 units of centre offset, while `polygons_overlap` shrank by only 0.3.
+  Piece 13 and piece 15 of track 1 are connected on screen and overlapping by
+  this test. So the designer could not rebuild the user's own track. Pairs that
+  meet at a joint now get `JOINT_OVERLAP_MARGIN` (= `SNAP_TOLERANCE / 2`)
+  instead: **51 → 54** of 63 knock-outs.
+* **Reserved pieces.** `_reserve_for_pending` holds pieces back for the open
+  endings a thread is not aiming at. It is a heuristic, not a bound — it pairs
+  endings greedily rather than optimally, and assumes each pair needs its own
+  chain of track when one switch serves several endings at once. Knock a switch
+  out and four endings are open, not two; the reserve then demanded more track
+  than the box held, the budget went negative, and the search died at the root
+  having looked at **two nodes**. Off when completing: **54 → 63** of 63.
+* **Parity.** Every ending gets paired, and only the switch has an odd number
+  (three). So *the number of switches added must match the parity of the open
+  endings*. Knock a switch out — three endings open — and **no amount of plain
+  track can ever close it**. The allowance ladder now starts at one switch
+  rather than none in that case. With a well-stocked library: **58 → 63**.
+* **Specials first.** `_SPECIAL_BONUS` drags switches and crossings to the
+  front of the move ordering. From nothing they are the whole point; in a gap
+  they are merely what is left in the box, and a crossing dropped into a hole
+  opens *three more* endings than it closes, so the search fans out instead of
+  converging. Plain track first, specials only if parity or failure demands
+  them: **42 → 58** with a large library.
+* **Sweep horizon.** The gap-size sweep ran 0..24 on every pass, most of it
+  spent on sizes far larger than the hole. Horizon now doubles alongside the
+  node budget, starting at 6. A three-piece gap with a big library went from
+  **timing out at 20s to 0.06s**.
+
+One genuine geometry bug fell out of this too: `_segments_intersect` compared
+raw cross-product signs, so two pieces laid end to end — whose edges are
+collinear, cross product exactly zero, computed value ~1e-13 — read as
+crossing. Non-monotonic in the shrink margin, which is how it was spotted:
+overlap `True` at margin 3, `False` at 2 and 4. Now thresholded at 1e-9.
+
+`LayoutEditor.is_closed()` also ignored forced connections while `view_model`
+counted them, so a track the app drew green and called closed was reported
+open. Fixed.
+
+### Where it stands
+
+Measured over all seven layouts × gaps of 3, 4 and 5 pieces × 10 seeds
+(210 cases each), with a 5-second limit:
+
+| box | solved | median | p90 | worst |
+| --- | --- | --- | --- | --- |
+| exactly the pieces removed | **210 / 210** | 0.01 s | 0.06 s | 0.21 s |
+| a well-stocked library (40/40/4/2) | **210 / 210** | 0.01 s | 0.73 s | 3.8 s |
+
+Stable across three repeats of the whole sweep. Gaps of 6, 7 and 8 pieces also
+solve 70/70 each — median 0.06 s, 0.12 s, 0.13 s; worst 3.1 s at eight.
+
+`tests/test_completion.py` runs the 3–5 range as 63 cases and checks each for
+closure *through the editor's own* `layouts_connections`, that the user's
+pieces are untouched, that only pieces they still own were used, that nothing
+collides, and that any joint left loose is one force-connection would accept.
+
+### Still open
+
+`design_track`, the empty-floor path, is unchanged and still cannot produce
+switch or crossing layouts from nothing. Section 3's model is the way to fix
+that if it ever matters — but it matters much less now, because the interesting
+topologies come from the user and the designer's job is to finish them.

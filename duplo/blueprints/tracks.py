@@ -209,8 +209,9 @@ def track_edit_action():
             )
             if stats is None:
                 return _json_error(
-                    "No closed track can be built from your pieces. "
-                    "A loop needs at least 12 curves.",
+                    "There is nothing left to build with. A loop needs at "
+                    "least 12 curves, and every piece in your library is "
+                    "already on the track.",
                 )
             extra["design"] = stats
         elif op == "check_force_connection":

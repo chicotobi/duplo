@@ -1,18 +1,37 @@
-"""Automatic track designer — grow an *interesting* closed layout from an inventory.
+"""Automatic track designer — close off a layout using the pieces in the box.
 
 The problem
 -----------
-Given the pieces a user owns (``{straight, curve, switch, crossing}``) and the
-size of their room, produce a layout that is
+Given the pieces already on the floor, the pieces a user owns
+(``{straight, curve, switch, crossing}``) and the size of their room, produce a
+layout that is
 
 1. **closed** — every ending consumed, which is exactly what
    :meth:`~duplo.services.editor.LayoutEditor.is_closed` checks, and
 2. **buildable** — no two pieces overlap, and it fits in the room, and
 3. **interesting** — not the plain oval you get by accident.
 
+Completion, not creation
+------------------------
+:func:`complete_track` is the entry point that matters. The pieces already
+placed are **given**: they are never moved, rotated or removed, and the search
+only ever *adds*. That is both what the user wants — their arrangement is the
+half of the design they care about — and much the smaller problem, because the
+endings left open pin down where the answer has to go.
+
+Designing a whole layout from an empty floor is the degenerate case of the same
+question, and it is a genuinely hard search; :func:`design_track` still does it,
+but only when there is nothing on the floor to work from.
+
+Both are bounded by a **hard wall clock**. When it runs out with nothing closed,
+:func:`complete_track` does not give up empty-handed — it returns an arbitrary
+non-overlapping continuation of the track instead, and says so
+(``closed: False``), leaving the user to keep as much of it as they like.
+
 The model
 ---------
-A layout is grown from a single seed piece by repeatedly taking one *open
+A layout is grown from the endings left open by the pieces already down — or,
+on an empty floor, from a single seed piece — by repeatedly taking one *open
 ending* and either
 
 * **attaching** a fresh piece from the inventory to it, or
@@ -70,6 +89,7 @@ import time
 
 from .geometry import (
     FORCE_CONNECTION_DISTANCE,
+    JOINT_OVERLAP_MARGIN,
     PIECE_TYPES,
     _pose_to_align,
     can_force_connect,
@@ -174,6 +194,26 @@ def _poly_box(poly):
     return (min(xs), max(xs), min(ys), max(ys))
 
 
+def _share_a_joint(eds_a, eds_b):
+    """Could these two placements be meeting at a joint?
+
+    True when any pair of their endings is close enough and square enough that
+    the app would let them be connected — which is exactly when the two pieces
+    are entitled to overlap a little.
+    """
+    for pair_a in eds_a:
+        ma = _mid(pair_a)
+        for pair_b in eds_b:
+            mb = _mid(pair_b)
+            if abs(ma[0] - mb[0]) > FORCE_CONNECTION_DISTANCE:
+                continue
+            if abs(ma[1] - mb[1]) > FORCE_CONNECTION_DISTANCE:
+                continue
+            if can_force_connect(pair_a, pair_b)["can_force"]:
+                return True
+    return False
+
+
 def _signed_turn(from_head, to_head):
     """Heading change in 30-degree steps, normalised to [-6, 5]."""
     t = (to_head - from_head) % 12
@@ -184,7 +224,8 @@ class _Attempt:
     """One randomized growth attempt. Holds the mutable search state."""
 
     def __init__(self, caps, room_w, room_h, rng, min_pieces, max_total,
-                 explore_pieces, node_budget, wiggle=None, max_forced=0):
+                 explore_pieces, node_budget, wiggle=None, max_forced=0,
+                 require_specials=True):
         self.caps = dict(caps)
         self.room_w = room_w
         self.room_h = room_h
@@ -200,6 +241,14 @@ class _Attempt:
         self.nodes = 0
 
         # placed[i] = dict(type, x, y, rot, poly, radius, turn)
+        # Whether every special piece in the allowance *must* end up in the
+        # design. True when designing from nothing — see the note in _dfs.
+        # False when completing: the box is simply what is left over, and
+        # insisting a spare switch be used would reject every honest answer.
+        self.require_specials = require_specials
+        # placed[:n_fixed] are the user's own pieces: immovable, and never
+        # popped by the search.
+        self.n_fixed = 0
         self.placed = []
         # open endings: dict(piece, ending, pair, mid, head)
         self.open = []
@@ -231,6 +280,12 @@ class _Attempt:
         # switch pair the turning number is no longer fixed, so it is off.
         self.simple_loop = caps["switch"] == 0 and caps["crossing"] == 0
         self.net_turn = 0
+        # Whether to hold pieces back for the open endings this thread is not
+        # aiming at. See _reserve_for_pending: worth it from nothing, harmful
+        # when completing.
+        self.reserve_pending = True
+        # Whether to try switches and crossings ahead of plain track.
+        self.prefer_specials = True
         # Set when the search proved there is no design for this configuration
         # (as opposed to merely running out of nodes).
         self.exhausted = False
@@ -264,7 +319,7 @@ class _Attempt:
             self._pose_ids[key] = pid
         return pid
 
-    def _overlaps(self, pid, x, y, radius, poly):
+    def _overlaps(self, pid, x, y, radius, poly, eds):
         """Does this placement clash with anything already down?
 
         Backtracking re-examines the same pair of placements over and over, and
@@ -284,6 +339,14 @@ class _Attempt:
             hit = cache.get(key)
             if hit is None:
                 hit = polygons_overlap(poly, pc["poly"])
+                if hit and _share_a_joint(eds, pc["endings"]):
+                    # Two pieces at a joint are allowed to poke into each other
+                    # as far as the connection tolerance lets them sit apart.
+                    # Without this the designer cannot rebuild the user's own
+                    # track: hand-snapped joints routinely land a unit or two
+                    # off centre, and every one of them reads as a collision.
+                    hit = polygons_overlap(poly, pc["poly"],
+                                           margin=JOINT_OVERLAP_MARGIN)
                 cache[key] = hit
             if hit:
                 return True
@@ -336,14 +399,23 @@ class _Attempt:
         return need <= remaining, d, cost
 
     def _reserve_for_pending(self, active, goal):
-        """Lower bound on pieces the *other* open endings will still need.
+        """Estimate of the pieces the *other* open endings will still need.
 
         Without this the active thread happily spends the entire budget and
         the endings left over — the spare legs of a switch pair, say — have
         nothing left to join them with. The main loop then closes thousands of
         times and the final connection never once succeeds, which is exactly
         the symptom a switch layout was showing.
+
+        It is a heuristic, not a true lower bound: it pairs the pending endings
+        off greedily rather than optimally, and it assumes each pair is bridged
+        by its own chain of track, when one switch or crossing can serve
+        several endings at once. That is a good trade when growing a design
+        from nothing, where the budget is large and the risk is squandering it.
+        It is the wrong trade when completing a track — see :meth:`adopt`.
         """
+        if not self.reserve_pending:
+            return 0
         others = [o for o in self.open if o is not active and o is not goal]
         if len(others) < 2:
             return 0
@@ -421,7 +493,7 @@ class _Attempt:
                 if not self._bbox_ok(box):
                     continue
                 pid = self._pose_id(ptype, x, y, rot)
-                if self._overlaps(pid, x, y, _RADIUS[ptype], poly):
+                if self._overlaps(pid, x, y, _RADIUS[ptype], poly, eds):
                     continue
 
                 # Feasibility is judged with this piece already spent.
@@ -433,7 +505,7 @@ class _Attempt:
                 self.caps[ptype] += 1
                 if not feasible:
                     continue
-                if specials_left > remaining:
+                if self.require_specials and specials_left > remaining:
                     # Every special piece still has to be placed, and there is
                     # no longer room for them.
                     continue
@@ -447,7 +519,7 @@ class _Attempt:
                         # affordable when the box holds more than the 12
                         # same-way curves a simple loop already needs.
                         cost -= 60.0
-                if ptype in _SPECIAL:
+                if self.prefer_specials and ptype in _SPECIAL:
                     # Nudge the special pieces in, but only as room runs out.
                     # A flat bonus buries them all in the first few pieces,
                     # which is fatal for a switch pair: both switches end up
@@ -472,6 +544,7 @@ class _Attempt:
         idx = len(self.placed)
         self.placed.append({
             "type": ptype, "x": x, "y": y, "rot": rot, "poly": poly,
+            "endings": eds,
             "radius": _RADIUS[ptype], "turn": turn, "pid": pid,
             "lo_x": box[0], "hi_x": box[1], "lo_y": box[2], "hi_y": box[3],
         })
@@ -519,7 +592,7 @@ class _Attempt:
         """
         remaining = self.max_total - len(self.placed)
         specials_left = self.caps["switch"] + self.caps["crossing"]
-        if specials_left > remaining:
+        if self.require_specials and specials_left > remaining:
             return False
 
         moves = []
@@ -534,7 +607,7 @@ class _Attempt:
                 if not self._bbox_ok(box):
                     continue
                 pid = self._pose_id(ptype, x, y, rot)
-                if self._overlaps(pid, x, y, _RADIUS[ptype], poly):
+                if self._overlaps(pid, x, y, _RADIUS[ptype], poly, eds):
                     continue
                 turn = _signed_turn(active["head"],
                                     ending_heading(eds[e_out]))
@@ -575,11 +648,15 @@ class _Attempt:
             raise _Budget
 
         if not self.open:
-            # The allowance is a requirement, not a permission: a variant that
-            # offers two switches has to deliver a design that uses both.
-            # Otherwise the search always returns the plain loop — it is by far
-            # the easiest thing to close — and the special pieces never appear.
-            if self.caps["switch"] or self.caps["crossing"]:
+            # When designing from nothing the allowance is a requirement, not a
+            # permission: a variant that offers two switches has to deliver a
+            # design that uses both. Otherwise the search always returns the
+            # plain loop — it is by far the easiest thing to close — and the
+            # special pieces never appear. Completing someone's track is the
+            # other way round: the box is simply whatever they have not used
+            # yet, and demanding the spare switch be worked in would reject
+            # every reasonable way of closing the gap.
+            if self.require_specials and (self.caps["switch"] or self.caps["crossing"]):
                 return False
             return len(self.placed) >= self.min_pieces
 
@@ -679,6 +756,200 @@ class _Attempt:
             self._pop_piece(ptype, *state)
         return False
 
+    # ----------------------------------------------------------- completion
+
+    def adopt(self, existing, consumed=()):
+        """Take the user's pieces as given, and open whatever is not joined up.
+
+        *existing* is ``[{"type", "x", "y", "rot"}, ...]`` in the caller's order
+        — the indices reported back in ``forced`` refer to it. *consumed* lists
+        ``(index, ending_idx)`` pairs already spoken for by a force connection
+        the user made earlier, so the search does not try to fill them again.
+
+        Which of the remaining endings count as *already joined* is decided by
+        the same first-match-wins scan
+        :func:`~duplo.repositories.layouts.layouts_connections` runs at view
+        time. Deriving it any other way would let the designer close a track
+        the editor still considers open.
+        """
+        world = []
+        for pc in existing:
+            ptype = pc["type"]
+            x, y, rot = float(pc["x"]), float(pc["y"]), int(pc["rot"]) % 12
+            poly = world_polygon(ptype, x, y, rot)
+            box = _poly_box(poly)
+            self.placed.append({
+                "type": ptype, "x": x, "y": y, "rot": rot, "poly": poly,
+                "endings": world_endings_for_pose(ptype, x, y, rot),
+                "radius": _RADIUS[ptype], "turn": 0,
+                "pid": self._pose_id(ptype, x, y, rot),
+                "lo_x": box[0], "hi_x": box[1], "lo_y": box[2], "hi_y": box[3],
+                "fixed": True,
+            })
+            self.bbox = (min(self.bbox[0], box[0]), max(self.bbox[1], box[1]),
+                         min(self.bbox[2], box[2]), max(self.bbox[3], box[3]))
+            world.append(world_endings_for_pose(ptype, x, y, rot))
+        self.n_fixed = len(self.placed)
+
+        flat = [(i, e, world[i][e])
+                for i in range(len(world)) for e in range(len(world[i]))]
+        taken = {(int(i), int(e)) for (i, e) in consumed}
+        for a in range(len(flat)):
+            i, ei, pair_a = flat[a]
+            if (i, ei) in taken:
+                continue
+            for b in range(a + 1, len(flat)):
+                j, ej, pair_b = flat[b]
+                if j == i or (j, ej) in taken:
+                    continue
+                if endings_fit(pair_a, pair_b):
+                    taken.add((i, ei))
+                    taken.add((j, ej))
+                    break
+
+        opened = [(i, ei, pair) for (i, ei, pair) in flat if (i, ei) not in taken]
+        # The walk follows self.open LIFO, so which ending it starts from is
+        # decided here. Shuffling it is what makes restarts try genuinely
+        # different ways into the same gap.
+        self.rng.shuffle(opened)
+        for (i, ei, pair) in opened:
+            self.open.append({
+                "piece": i, "ending": ei, "pair": pair,
+                "mid": _mid(pair), "head": ending_heading(pair),
+            })
+
+        # Prunes that only make sense for a design grown from nothing:
+        # the first-turn mirror break (the user's pieces already fixed the
+        # handedness) and the turning-number bound (it counts from a seed).
+        self.seen_turn = True
+        self.simple_loop = False
+        self.wiggle = False
+        # And the pending-endings reserve, which is the one that really bites.
+        # Knock a switch or a crossing out of a track and four endings are left
+        # open, not two; the reserve then demands a chain of track between the
+        # two the thread is not aiming at, when in truth the special piece
+        # about to go back in will serve them all. With only a few pieces in
+        # the box that leaves a negative budget and the search dies at the
+        # root, having looked at two nodes. Every gap containing a special
+        # piece failed this way.
+        self.reserve_pending = False
+        # And the bias towards switches and crossings. From nothing they are
+        # the whole point of the design; in a gap they are merely what happens
+        # to be left in the box, and trying them first makes a user with a
+        # well-stocked library much slower to serve than one with three spare
+        # curves. If they want a switch there, they can put one there.
+        self.prefer_specials = False
+        return len(self.open)
+
+    def run_completion(self, deadline):
+        """Close the adopted layout. Returns ``(placed, forced)`` or ``None``."""
+        try:
+            if self._dfs(deadline, None):
+                return list(self.placed), list(self.forced)
+            # Searched out without being cut short: no completion of exactly
+            # this size exists.
+            self.exhausted = True
+        except _Budget:
+            pass
+        return None
+
+    def _dock_open(self, active):
+        """Consume *active* against another open ending if it already meets one.
+
+        Exact fits first, then — while the allowance lasts — a near miss the
+        editor's force connection would close. Returns ``True`` if it docked.
+        """
+        for j in range(len(self.open) - 1):
+            other = self.open[j]
+            if other["piece"] == active["piece"]:
+                continue
+            if endings_fit(active["pair"], other["pair"]):
+                self.open.pop()
+                self.open.pop(j)
+                return True
+        if len(self.forced) < self.max_forced:
+            for j in range(len(self.open) - 1):
+                other = self.open[j]
+                if other["piece"] == active["piece"]:
+                    continue
+                if can_force_connect(active["pair"], other["pair"])["can_force"]:
+                    self.open.pop()
+                    self.open.pop(j)
+                    self.forced.append((active["piece"], active["ending"],
+                                        other["piece"], other["ending"]))
+                    return True
+        return False
+
+    def greedy_continuation(self, deadline, limit):
+        """Lay track onward from the open endings without ever backtracking.
+
+        This is the answer when the clock runs out: not a closed design, but a
+        real, non-overlapping, room-fitting stretch of track carrying on from
+        where the user left off, which they can then keep or trim as they like.
+        Each step takes whichever piece ends up nearest another open ending, so
+        the continuation heads home rather than wandering off — and if it
+        arrives, the track closes and everyone is happy.
+
+        No search, no backtracking: one pass, worst case *limit* pieces.
+        """
+        added = 0
+        stuck = 0
+        while added < limit and self.open and stuck <= len(self.open):
+            if time.monotonic() > deadline:
+                break
+            active = self.open[-1]
+            if self._dock_open(active):
+                stuck = 0
+                continue
+
+            others = [o for o in self.open[:-1] if o["piece"] != active["piece"]]
+            best = None
+            for ptype in PIECE_TYPES:
+                if self.caps[ptype] <= 0:
+                    continue
+                for e_in, e_out in ROUTES[ptype]:
+                    x, y, rot = _pose_to_align(ptype, e_in, active["pair"])
+                    poly = world_polygon(ptype, x, y, rot)
+                    box = _poly_box(poly)
+                    if not self._bbox_ok(box):
+                        continue
+                    eds = world_endings_for_pose(ptype, x, y, rot)
+                    pid = self._pose_id(ptype, x, y, rot)
+                    if self._overlaps(pid, x, y, _RADIUS[ptype], poly, eds):
+                        continue
+                    exit_mid = _mid(eds[e_out])
+                    cost = min(
+                        (math.hypot(exit_mid[0] - o["mid"][0],
+                                    exit_mid[1] - o["mid"][1]) for o in others),
+                        default=0.0,
+                    ) + self.rng.uniform(0.0, 10.0)
+                    if best is None or cost < best[0]:
+                        turn = _signed_turn(active["head"],
+                                            ending_heading(eds[e_out]))
+                        best = (cost, ptype, e_in, e_out, x, y, rot, eds, poly,
+                                turn, box, pid)
+            if best is None:
+                # Nothing fits on this ending. Park it and try another thread.
+                self.open.insert(0, self.open.pop())
+                stuck += 1
+                continue
+
+            self._push_piece(*best[1:])
+            added += 1
+            stuck = 0
+
+        # A final sweep, because docking above only ever looks at the ending
+        # the walk happens to be standing on. Running out of pieces with two
+        # endings already face to face is common, and reporting that track as
+        # open when the editor will draw it closed would be plainly wrong.
+        for i in range(len(self.open) - 1, -1, -1):
+            if i >= len(self.open):
+                continue
+            self.open.append(self.open.pop(i))
+            if not self._dock_open(self.open[-1]):
+                self.open.insert(i, self.open.pop())
+        return added
+
     # ---------------------------------------------------------------- entry
 
     def run(self, seed_type, deadline):
@@ -693,6 +964,7 @@ class _Attempt:
         seed_turn = 1 if seed_type in ("curve", "switch") else 0
         self.placed.append({
             "type": seed_type, "x": x, "y": y, "rot": rot, "poly": poly,
+            "endings": world_endings_for_pose(seed_type, x, y, rot),
             "radius": _RADIUS[seed_type], "turn": seed_turn,
             "pid": self._pose_id(seed_type, x, y, rot),
             "lo_x": box[0], "hi_x": box[1], "lo_y": box[2], "hi_y": box[3],
@@ -808,6 +1080,263 @@ def score_layout(placed, inventory, room_w, room_h):
         "height_m": round(bh / UNITS_PER_M, 2),
         "score": round(total, 3),
     }
+
+
+# ---------------------------------------------------------------- completion
+
+# Pieces offered as an arbitrary continuation when the clock beats the search.
+# Enough to be worth having and to stand a fair chance of wandering home,
+# few enough that trimming it back is not a chore.
+_FALLBACK_PIECES = 12
+
+# The continuation is a single pass with no backtracking, so it is quick — but
+# it must not be cut off half-built by a budget that has already expired.
+_FALLBACK_GRACE = 1.0
+
+# Largest gap the completer will try to fill exactly. Beyond this the search
+# is hopeless anyway and the continuation is the better answer.
+_MAX_GAP = 24
+
+# Gap sizes covered by the first sweep, before the horizon starts doubling.
+# Most real gaps are a handful of pieces, and reaching them on the first pass
+# is what keeps the answer instant.
+_START_HORIZON = 6
+
+# Slack allowed beyond a layout that has already outgrown its room, in world
+# units. Two piece lengths: enough for a patch to bulge past the edge, not
+# enough for the design to sprawl.
+_ROOM_HEADROOM = 2 * max(MAX_ADVANCE.values())
+
+# How many piece allowances the completer will work through. The ladder is
+# ordered cheapest-first, so the tail is both the least likely to be needed
+# and the most expensive to search.
+_MAX_ALLOWANCES = 6
+
+
+def _completion_allowances(caps, n_open):
+    """Piece allowances to try when filling a gap, cheapest first.
+
+    Two things shape the ladder.
+
+    **Parity.** Every ending in a closed layout is paired off, so the endings
+    left open plus the endings of whatever is added must come to an even
+    number. Straights, curves and crossings all have an even number of
+    endings; only a switch has three. So the number of switches added has to
+    match the parity of the open endings — and when a switch has been knocked
+    out of a track, leaving three endings open, *no amount of plain track can
+    ever close it*. Starting the ladder at one switch rather than none is the
+    difference between answering those gaps in a few hundred nodes and not
+    answering them at all.
+
+    **Cost.** A switch or a crossing dropped into a gap opens more endings
+    than it closes, so the search fans out instead of converging. Offering the
+    fewest specials that parity permits, and only widening if that fails,
+    keeps the common case instant.
+    """
+    parity = n_open % 2
+    ladder = sorted(
+        (sw + cr, sw, cr)
+        for sw in range(parity, caps["switch"] + 1, 2)
+        for cr in range(caps["crossing"] + 1)
+    )
+    return [dict(caps, switch=sw, crossing=cr)
+            for _, sw, cr in ladder[:_MAX_ALLOWANCES]]
+
+
+def _layout_extent(pieces):
+    """``(width, height)`` of a set of placed pieces, in world units."""
+    lo_x = lo_y = math.inf
+    hi_x = hi_y = -math.inf
+    for pc in pieces:
+        for (px, py) in world_polygon(pc["type"], pc["x"], pc["y"], pc["rot"]):
+            lo_x = min(lo_x, px)
+            hi_x = max(hi_x, px)
+            lo_y = min(lo_y, py)
+            hi_y = max(hi_y, py)
+    return hi_x - lo_x, hi_y - lo_y
+
+
+def complete_track(existing, inventory, room_w=6.0, room_h=4.0, seed=None,
+                   time_budget=5.0, max_new=None, max_forced=_DEFAULT_MAX_FORCED,
+                   consumed=(), node_budget=24000,
+                   fallback_pieces=_FALLBACK_PIECES):
+    """Close off the track the user has already built.
+
+    The pieces in *existing* are **given**: never moved, never rotated, never
+    removed. Only additions are proposed, and only out of what is left in the
+    box after *existing* has been paid for.
+
+    Parameters
+    ----------
+    existing : list of dict
+        ``{"type", "x", "y", "rot"}`` — the pieces already on the floor, in the
+        caller's own order. Indices in the returned ``forced`` list refer to
+        ``existing + pieces``, in that order.
+    inventory : dict
+        ``{"straight": n, ...}`` — everything the user *owns*, not what is
+        left. What *existing* already uses is deducted here.
+    room_w, room_h : float
+        Room size in metres. Never smaller than what is already on the floor:
+        a layout that has outgrown the room is the user's business, and
+        refusing to extend it would be no help at all.
+    seed : int or None
+        Seed for reproducible completions.
+    time_budget : float
+        **Hard** wall-clock limit in seconds, honoured whatever the outcome.
+        When it expires with nothing closed, an arbitrary continuation is
+        returned instead of nothing — see ``closed`` below.
+    max_new : int or None
+        Cap on pieces added. Defaults to what is in the box, capped at
+        :data:`_MAX_GAP`.
+    max_forced : int
+        Joints that may be left as near-misses for the editor's force
+        connection to close. Real track flexes a few centimetres, and allowing
+        this is what makes tight gaps solvable at all.
+    consumed : iterable
+        ``(existing_index, ending_idx)`` pairs already joined by a force
+        connection the user made, so they are not treated as open.
+    fallback_pieces : int
+        How long an arbitrary continuation to offer when the search times out.
+
+    Returns
+    -------
+    dict or None
+        ``None`` only if *existing* is empty — there is nothing to complete,
+        so the caller should design from scratch instead. Otherwise::
+
+            {"pieces": [{"type", "x", "y", "rot"}, ...],   # additions only
+             "forced": [{"piece1", "ending1_idx", "piece2", "ending2_idx"}],
+             "closed": bool,
+             "stats":  {...}}
+
+        ``closed`` is the whole answer: ``True`` means every ending is now
+        consumed; ``False`` means the clock ran out and ``pieces`` is a
+        continuation to keep or trim, not a solution. Piece coordinates are in
+        the same frame as *existing* — nothing is re-centred, because that
+        would move the user's track.
+    """
+    existing = [{"type": p["type"], "x": float(p["x"]), "y": float(p["y"]),
+                 "rot": int(p["rot"]) % 12} for p in existing]
+    if not existing:
+        return None
+
+    inventory = {t: int(inventory.get(t, 0)) for t in PIECE_TYPES}
+    used = {t: 0 for t in PIECE_TYPES}
+    for pc in existing:
+        used[pc["type"]] += 1
+    # What is actually left in the box. Clamped at zero: a user may well have
+    # built something with pieces they no longer claim to own, and that is no
+    # reason to refuse to help them finish it.
+    caps = {t: max(0, inventory[t] - used[t]) for t in PIECE_TYPES}
+    in_box = sum(caps.values())
+
+    # The room is a real constraint, but a track that has already outgrown it
+    # is the user's business, and refusing to help them close it would be no
+    # help at all. So the limit is never tighter than what is already on the
+    # floor — plus enough slack for the patch itself, since a gap at the very
+    # edge has to bulge a little to be filled.
+    have_w, have_h = _layout_extent(existing)
+    room_w_u = max(room_w * UNITS_PER_M, have_w + _ROOM_HEADROOM)
+    room_h_u = max(room_h * UNITS_PER_M, have_h + _ROOM_HEADROOM)
+
+    cap = min(in_box, _MAX_GAP if max_new is None else max_new)
+    rng = random.Random(seed)
+    started = time.monotonic()
+    deadline = started + time_budget
+
+    def _make(allowance, n_new, budget):
+        att = _Attempt(
+            caps=allowance, room_w=room_w_u, room_h=room_h_u, rng=rng,
+            # An exact size, as in design_track: it is what makes the
+            # "pieces still needed to get home" bound sharp enough to prune.
+            min_pieces=len(existing) + n_new,
+            max_total=len(existing) + n_new,
+            explore_pieces=0,   # fill the gap, do not go sightseeing
+            node_budget=budget,
+            wiggle=False,
+            max_forced=max_forced,
+            require_specials=False,
+        )
+        att.adopt(existing, consumed)
+        return att
+
+    def _report(placed, forced, closed, att):
+        added = placed[att.n_fixed:]
+        stats = {
+            "added": len(added),
+            "closed": closed,
+            "forced_joints": len(forced),
+            "total_pieces": len(placed),
+            "added_by_type": {
+                t: sum(1 for pc in added if pc["type"] == t) for t in PIECE_TYPES
+            },
+            "seconds": round(time.monotonic() - started, 2),
+        }
+        w, h = _layout_extent(placed)
+        stats["width_m"] = round(w / UNITS_PER_M, 2)
+        stats["height_m"] = round(h / UNITS_PER_M, 2)
+        return {
+            "pieces": [{"type": pc["type"], "x": pc["x"], "y": pc["y"],
+                        "rot": pc["rot"]} for pc in added],
+            "forced": [
+                {"piece1": a, "ending1_idx": ea, "piece2": b, "ending2_idx": eb}
+                for (a, ea, b, eb) in forced
+            ],
+            "closed": closed,
+            "stats": stats,
+        }
+
+    # Already closed, or closable with nothing added: answer at once rather
+    # than spending the budget proving it.
+    probe = _make(caps, 0, 1)
+    if not probe.open:
+        return _report(probe.placed, [], True, probe)
+    allowances = _completion_allowances(caps, len(probe.open))
+
+    # Sweep the gap size upwards, smallest first — the tidiest completion is
+    # the one that adds fewest pieces, and small sizes are also cheap to rule
+    # out. Iterative broadening on top: a whole sweep at a small node budget
+    # and a short horizon, then double both.
+    #
+    # Broadening the *horizon* as well as the budget is what keeps a
+    # well-stocked library fast. The gap is the same three pieces whether the
+    # box holds three spare curves or eighty, but the size sweep is not: a full
+    # 0..24 pass costs twenty times what 0..4 does, and it is all spent on
+    # sizes far larger than the hole being filled. Measured on the real
+    # layouts, a three-piece gap went from timing out at twenty seconds to
+    # closing in hundredths of a second.
+    proven_impossible = set()
+    budget = max(256, node_budget // 16)
+    horizon = min(cap, _START_HORIZON)
+    while time.monotonic() < deadline:
+        swept = False
+        for level, allowance in enumerate(allowances):
+            for n_new in range(horizon + 1):
+                if time.monotonic() >= deadline:
+                    break
+                if (level, n_new) in proven_impossible:
+                    continue
+                swept = True
+                att = _make(allowance, n_new, budget)
+                result = att.run_completion(deadline)
+                if result is not None:
+                    placed, forced = result
+                    return _report(placed, forced, True, att)
+                if att.exhausted:
+                    proven_impossible.add((level, n_new))
+        if not swept and horizon >= cap:
+            break   # every size searched out: no completion exists at all
+        budget *= 2
+        horizon = min(cap, horizon * 2)
+
+    # Out of time (or out of hope). Hand back a continuation rather than
+    # nothing: the user asked for help finishing, and half a suggestion they
+    # can trim beats an error message.
+    att = _make(caps, cap, node_budget)
+    att.greedy_continuation(deadline + _FALLBACK_GRACE,
+                            min(cap, fallback_pieces))
+    closed = not att.open
+    return _report(att.placed, att.forced, closed, att)
 
 
 # --------------------------------------------------------------------- entry

@@ -12,6 +12,12 @@ _DEFAULT_LIB = {"straight": 16, "curve": 24, "switch": 4, "crossing": 2}
 _SANDBOX_ROOM_W = 6
 _SANDBOX_ROOM_H = 4
 
+# Shown when the designer cannot even extend the track — an empty box, or an
+# empty floor with too little to make a loop out of.
+_DESIGN_FAILED = ("There is nothing left to build with. A loop needs at least "
+                  "12 curves, and every piece in your library is already on "
+                  "the track.")
+
 
 @bp.route("/", methods=["GET", "POST"])
 def index():
@@ -113,10 +119,8 @@ def sandbox_action():
                 seed=payload.get("seed"),
             )
             if stats is None:
-                return jsonify({"ok": False, "error": (
-                    "No closed track can be built from your pieces. "
-                    "A loop needs at least 12 curves."
-                )}), 400
+                return jsonify({"ok": False,
+                                "error": _DESIGN_FAILED}), 400
             extra["design"] = stats
         elif op == "check_force_connection":
             result = editor.check_force_connection(
