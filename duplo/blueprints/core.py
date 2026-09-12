@@ -7,8 +7,16 @@ from ..services.editor import LayoutEditor
 
 bp = Blueprint("core", __name__)
 
-# Default library for anonymous sandbox
-_DEFAULT_LIB = {"straight": 8, "curve": 12, "switch": 2, "crossing": 1}
+# Default library and room (metres) for the anonymous sandbox
+_DEFAULT_LIB = {"straight": 16, "curve": 24, "switch": 4, "crossing": 2}
+_SANDBOX_ROOM_W = 6
+_SANDBOX_ROOM_H = 4
+
+# Shown when the designer cannot even extend the track — an empty box, or an
+# empty floor with too little to make a loop out of.
+_DESIGN_FAILED = ("There is nothing left to build with. A loop needs at least "
+                  "12 curves, and every piece in your library is already on "
+                  "the track.")
 
 
 @bp.route("/", methods=["GET", "POST"])
@@ -24,8 +32,8 @@ def index():
         user_lib=_DEFAULT_LIB,
         view_model=editor.view_model(_DEFAULT_LIB),
         is_anonymous=True,
-        room_w=6,
-        room_h=4,
+        room_w=_SANDBOX_ROOM_W,
+        room_h=_SANDBOX_ROOM_H,
     )
 
 
@@ -105,6 +113,15 @@ def sandbox_action():
                           None if ending_idx is None else int(ending_idx))
         elif op == "clear_selection":
             editor.clear_selection()
+        elif op == "design_track":
+            stats = editor.autodesign(
+                _DEFAULT_LIB, _SANDBOX_ROOM_W, _SANDBOX_ROOM_H,
+                seed=payload.get("seed"),
+            )
+            if stats is None:
+                return jsonify({"ok": False,
+                                "error": _DESIGN_FAILED}), 400
+            extra["design"] = stats
         elif op == "check_force_connection":
             result = editor.check_force_connection(
                 int(payload.get("piece1_id")),

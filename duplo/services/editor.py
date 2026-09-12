@@ -30,6 +30,7 @@ from ..repositories.tracks import (
     tracks_update_forced_connections,
 )
 
+from .designer import complete_track, design_track
 from .geometry import (
     PIECE_TYPES,
     SNAP_TOLERANCE,
@@ -110,10 +111,20 @@ class LayoutEditor:
     # ------------------------------------------------------------- queries
 
     def is_closed(self):
+        """Is every ending consumed — by a coincident joint or a forced one?
+
+        Forced connections count, exactly as they do in :meth:`view_model`.
+        They used not to, which meant a track the app drew green and called
+        closed was reported open here.
+        """
         if not self.pieces:
             return False
         _, all_eds, _ = self._build()
-        return len(layouts_free_endings(all_eds)) == 0
+        free = set(layouts_free_endings(all_eds))
+        for fc in self.forced_connections:
+            free.discard((fc["piece1_id"], fc["ending1_idx"]))
+            free.discard((fc["piece2_id"], fc["ending2_idx"]))
+        return not free
 
     def free_endings_excluding(self, piece_id):
         """World-space free endings of every piece except ``piece_id``.
@@ -279,6 +290,96 @@ class LayoutEditor:
             p["x"] = float(m["x"])
             p["y"] = float(m["y"])
             p["rot"] = int(m["rot"]) % 12
+
+    def autodesign(self, user_lib, room_w, room_h, seed=None,
+                   time_budget=None):
+        """Carry the layout on from where it is, until it closes.
+
+        Whatever is already on the floor stays exactly where the user put it.
+        This only ever *adds* pieces, out of what is left in ``user_lib`` once
+        the current layout has been paid for. On an empty floor there is
+        nothing to build on, so a whole track is designed instead.
+
+        Returns the designer's stats dict — which carries ``closed``, and it
+        may well be ``False``: when the search runs out of time the pieces
+        added are an arbitrary continuation for the user to keep or trim, not
+        a solution. Returns ``None`` if nothing at all could be done, in which
+        case the layout is left untouched.
+        """
+        budget = {} if time_budget is None else {"time_budget": time_budget}
+
+        if not self.pieces:
+            return self._design_from_nothing(user_lib, room_w, room_h, seed,
+                                             budget)
+
+        result = complete_track(
+            [{"type": p["type"], "x": p["x"], "y": p["y"], "rot": p["rot"]}
+             for p in self.pieces],
+            user_lib, room_w=room_w, room_h=room_h, seed=seed,
+            consumed=self._forced_endings(), **budget,
+        )
+        if result is None or not result["pieces"]:
+            # Nothing to add. Still worth reporting when the track was already
+            # closed, so the caller can say so rather than claiming failure.
+            return result["stats"] if result else None
+
+        # Indices the designer reports are into (existing + added), in order.
+        ids = [p["id"] for p in self.pieces]
+        for p in result["pieces"]:
+            pid = self._mint_id()
+            ids.append(pid)
+            self.pieces.append({"id": pid, "type": p["type"],
+                                "x": float(p["x"]), "y": float(p["y"]),
+                                "rot": int(p["rot"]) % 12})
+        # Joints the designer left just short of snapping — real track flexes
+        # — recorded so the layout still reads as closed.
+        for fc in result["forced"]:
+            self.forced_connections.append({
+                "piece1_id": ids[fc["piece1"]], "ending1_idx": fc["ending1_idx"],
+                "piece2_id": ids[fc["piece2"]], "ending2_idx": fc["ending2_idx"],
+            })
+        self.selection = None
+        return result["stats"]
+
+    def _forced_endings(self):
+        """Force-connected endings as ``(piece index, ending_idx)`` pairs.
+
+        Indices are into :attr:`pieces`, which is the order the designer is
+        handed the layout in. Connections naming a piece that is no longer
+        there are dropped.
+        """
+        pos = {p["id"]: i for i, p in enumerate(self.pieces)}
+        out = []
+        for fc in self.forced_connections:
+            a, b = pos.get(fc["piece1_id"]), pos.get(fc["piece2_id"])
+            if a is None or b is None:
+                continue
+            out.append((a, fc["ending1_idx"]))
+            out.append((b, fc["ending2_idx"]))
+        return out
+
+    def _design_from_nothing(self, user_lib, room_w, room_h, seed, budget):
+        """Design a whole track. Only reachable with an empty floor."""
+        result = design_track(user_lib, room_w=room_w, room_h=room_h,
+                              seed=seed, **budget)
+        if result is None:
+            return None
+        self.pieces = [
+            {"id": self._mint_id(), "type": p["type"],
+             "x": float(p["x"]), "y": float(p["y"]), "rot": int(p["rot"]) % 12}
+            for p in result["pieces"]
+        ]
+        self.selection = None
+        ids = [p["id"] for p in self.pieces]
+        self.forced_connections = [
+            {"piece1_id": ids[fc["piece1"]], "ending1_idx": fc["ending1_idx"],
+             "piece2_id": ids[fc["piece2"]], "ending2_idx": fc["ending2_idx"]}
+            for fc in result.get("forced", [])
+        ]
+        stats = dict(result["stats"])
+        stats["added"] = len(self.pieces)
+        stats["closed"] = True
+        return stats
 
     def select(self, piece_id, ending_idx=None):
         # Validate.
